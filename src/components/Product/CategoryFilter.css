@@ -1,0 +1,19 @@
+.category-filter {
+    display: flex;
+    gap: var(--spacing-xs);
+    overflow-x: auto;
+    padding: var(--spacing-md) 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-snap-type: x mandatory;
+}
+
+.category-filter::-webkit-scrollbar {
+    display: none;
+}
+
+.category-filter .chip {
+    scroll-snap-align: start;
+    white-space: nowrap;
+    flex-shrink: 0;
+}

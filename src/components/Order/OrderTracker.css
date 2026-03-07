@@ -1,0 +1,100 @@
+.order-tracker {
+    padding: var(--spacing-lg) 0;
+}
+
+.order-tracker-time {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-info-light);
+    border-radius: var(--radius-md);
+    color: var(--color-info);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-lg);
+    animation: fadeIn var(--transition-normal) ease;
+}
+
+.tracker-steps {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+}
+
+.tracker-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    position: relative;
+    flex: 1;
+}
+
+.tracker-step-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: all var(--transition-normal) var(--ease-default);
+    z-index: 1;
+}
+
+.tracker-step.completed .tracker-step-dot {
+    box-shadow: var(--shadow-sm);
+}
+
+.tracker-step.current .tracker-step-dot {
+    animation: pulseGlow 2s infinite;
+    transform: scale(1.15);
+}
+
+.tracker-step-line {
+    position: absolute;
+    top: 16px;
+    left: calc(50% + 16px);
+    right: calc(-50% + 16px);
+    height: 3px;
+    background: var(--color-border);
+    transition: background var(--transition-normal) var(--ease-default);
+}
+
+.tracker-step-line.completed {
+    background: var(--color-success);
+}
+
+.tracker-step-label {
+    font-size: 10px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-hint);
+    text-align: center;
+    max-width: 60px;
+    line-height: 1.2;
+}
+
+.tracker-step.completed .tracker-step-label {
+    color: var(--color-text-secondary);
+}
+
+.tracker-step.current .tracker-step-label {
+    color: var(--color-text);
+    font-weight: var(--font-weight-bold);
+}
+
+.order-tracker-cancelled {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    justify-content: center;
+    padding: var(--spacing-md);
+    background: var(--color-error-light);
+    border-radius: var(--radius-md);
+    color: var(--color-error);
+    font-weight: var(--font-weight-bold);
+    margin-top: var(--spacing-md);
+}

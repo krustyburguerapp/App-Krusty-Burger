@@ -1,0 +1,182 @@
+.admin-tabs {
+    display: flex;
+    gap: var(--spacing-xs);
+    overflow-x: auto;
+    padding-bottom: var(--spacing-md);
+    scrollbar-width: none;
+}
+
+.admin-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.admin-tab {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2xs);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    background: var(--color-bg-dark-card);
+    color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    white-space: nowrap;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all var(--transition-fast) var(--ease-default);
+    font-family: var(--font-body);
+}
+
+.admin-tab.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+}
+
+.admin-tab:hover:not(.active) {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin-tab-count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 1px 7px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: var(--font-weight-bold);
+}
+
+.admin-tab.active .admin-tab-count {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.admin-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    padding-bottom: var(--spacing-2xl);
+}
+
+.admin-order-card {
+    background: var(--color-bg-dark-card);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    animation: fadeInUp var(--transition-slow) var(--ease-out) both;
+    transition: all var(--transition-fast) var(--ease-default);
+}
+
+.admin-order-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-order-card.new-order {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 16px rgba(211, 47, 47, 0.2);
+}
+
+.admin-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.admin-order-id {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-family: monospace;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+}
+
+.admin-new-badge {
+    background: var(--color-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 10px;
+    font-family: var(--font-body);
+    animation: pulseGlow 2s infinite;
+}
+
+.admin-order-card .order-status-chip {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.admin-order-client {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: var(--font-size-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.admin-order-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2xs);
+    margin-bottom: var(--spacing-sm);
+}
+
+.admin-order-items span {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.6);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+}
+
+.admin-order-address {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--spacing-sm);
+}
+
+.admin-order-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-order-total {
+    font-family: var(--font-display);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-extrabold);
+    color: var(--color-secondary);
+}
+
+.admin-order-actions {
+    display: flex;
+    gap: var(--spacing-2xs);
+    align-items: center;
+}
+
+.admin-wa-btn {
+    background: #25D366;
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+}
+
+.admin-wa-btn:hover {
+    background: #1da851;
+}
+
+.admin-page .empty-state,
+.admin-page [class*="EmptyState"] {
+    color: rgba(255, 255, 255, 0.6);
+}

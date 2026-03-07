@@ -1,0 +1,94 @@
+.admin-products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.admin-products-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding-bottom: var(--spacing-2xl);
+}
+
+.admin-product-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-bg-dark-card);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-md);
+    animation: fadeInUp var(--transition-slow) var(--ease-out) both;
+    transition: all var(--transition-fast) var(--ease-default);
+}
+
+.admin-product-row:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-product-img {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.admin-product-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.admin-product-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 1.2rem;
+}
+
+.admin-product-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-product-name {
+    color: var(--color-text-on-dark);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-product-cat {
+    font-size: var(--font-size-xs);
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.admin-product-price {
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-secondary);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+}
+
+.admin-product-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.admin-product-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}

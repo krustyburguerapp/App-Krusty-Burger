@@ -1,0 +1,69 @@
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--bottom-nav-height);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--color-border-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: var(--z-sticky);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-dark {
+    background: rgba(26, 26, 46, 0.95);
+    border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.bottom-nav-dark .bottom-nav-item {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.bottom-nav-dark .bottom-nav-item.active {
+    color: var(--color-secondary);
+}
+
+.bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--spacing-xs);
+    color: var(--color-text-hint);
+    transition: all var(--transition-fast) var(--ease-default);
+    border-radius: var(--radius-md);
+    min-width: 64px;
+}
+
+.bottom-nav-item.active {
+    color: var(--color-primary);
+}
+
+.bottom-nav-item:active {
+    transform: scale(0.92);
+}
+
+.bottom-nav-icon {
+    font-size: 24px;
+    transition: transform var(--transition-fast) var(--ease-bounce);
+}
+
+.bottom-nav-item.active .bottom-nav-icon {
+    transform: scale(1.1);
+}
+
+.bottom-nav-label {
+    font-size: 11px;
+    font-weight: var(--font-weight-medium);
+}
+
+@media (min-width: 1024px) {
+    .bottom-nav {
+        display: none;
+    }
+}

@@ -1,0 +1,110 @@
+.confirmation-container {
+    max-width: 500px;
+    padding-top: var(--spacing-xl);
+}
+
+.confirmation-card {
+    background: var(--color-bg-card);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    animation: scaleIn var(--transition-slow) var(--ease-bounce);
+}
+
+.confirmation-success-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-full);
+    background: var(--color-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 24px rgba(67, 160, 71, 0.4);
+    animation: scaleIn var(--transition-slow) var(--ease-bounce);
+}
+
+.confirmation-success-icon .material-icons-round {
+    font-size: 40px;
+    color: white;
+}
+
+.confirmation-card h2 {
+    font-family: var(--font-display);
+    color: var(--color-text);
+}
+
+.confirmation-order-id {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    padding: var(--spacing-2xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-medium);
+    font-family: monospace;
+}
+
+.confirmation-details {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-md);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+}
+
+.confirmation-detail-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+}
+
+.confirmation-detail-row .material-icons-round {
+    font-size: 20px;
+    color: var(--color-primary);
+}
+
+.confirmation-items {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2xs);
+    text-align: left;
+}
+
+.confirmation-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    padding: var(--spacing-2xs) 0;
+}
+
+.confirmation-whatsapp-btn {
+    background: #25D366;
+    color: white;
+    font-weight: var(--font-weight-bold);
+    gap: var(--spacing-xs);
+    text-decoration: none;
+    margin-top: var(--spacing-sm);
+}
+
+.confirmation-whatsapp-btn:hover {
+    background: #1da851;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
+}
+
+.confirmation-actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
