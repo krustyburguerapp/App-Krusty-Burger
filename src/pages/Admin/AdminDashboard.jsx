@@ -1,12 +1,12 @@
 import { useAuth } from '../../contexts/AuthContext';
-import { useOrders } from '../../hooks/useOrders';
+import { useOrders } from '../../contexts/OrdersContext';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../../components/UI/Spinner';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
     const { user, userData } = useAuth();
-    const { orders, loading, newOrdersCount } = useOrders(user?.uid, true);
+    const { orders, loading, newOrdersCount } = useOrders();
     const navigate = useNavigate();
 
     if (loading) return <div className="page admin-page"><Spinner size="lg" /></div>;

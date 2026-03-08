@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
-import { useOrders } from '../../hooks/useOrders';
+import { useOrders } from '../../contexts/OrdersContext';
 import { isStoreOpen, getBusinessHoursText } from '../../utils/businessHours';
 import { calculateEstimatedTime } from '../../utils/estimatedTime';
 import { showToast } from '../../utils/notifications';
@@ -12,7 +12,7 @@ import './Checkout.css';
 export default function Checkout() {
     const { user, userData, updateUserData } = useAuth();
     const { items, subtotal, clearCart } = useCart();
-    const { createOrder } = useOrders(user?.uid);
+    const { createOrder } = useOrders();
     const navigate = useNavigate();
 
     const [deliveryType, setDeliveryType] = useState('delivery');
@@ -65,7 +65,7 @@ export default function Checkout() {
         }
         const orderData = {
             userId: user.uid,
-            userName: userData?.displayName || 'Invitado',
+            userName: userData?.displayName || 'Krusty Fan',
             userPhone: phone,
             userAddress: address,
             userAddressNotes: addressNotes,
@@ -213,6 +213,12 @@ export default function Checkout() {
                         <><span className="material-icons-round">check_circle</span> Confirmar Pedido — ${total.toLocaleString('es-CO')}</>
                     )}
                 </button>
+
+                {!loading && (
+                    <button className="btn btn-ghost btn-lg btn-full" onClick={() => navigate('/menu')} style={{ marginTop: 'var(--spacing-sm)' }}>
+                        <span className="material-icons-round">edit_shopping_cart</span> Modificar Pedido
+                    </button>
+                )}
             </div>
         </div>
     );

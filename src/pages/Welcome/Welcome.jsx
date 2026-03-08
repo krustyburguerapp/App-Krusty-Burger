@@ -4,7 +4,7 @@ import { useState } from 'react';
 import './Welcome.css';
 
 export default function Welcome() {
-    const { loginWithGoogle, loginAsGuest } = useAuth();
+    const { loginWithGoogle } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
 
@@ -15,12 +15,7 @@ export default function Welcome() {
         if (result.success) navigate('/menu');
     };
 
-    const handleGuestLogin = async () => {
-        setLoading(true);
-        const result = await loginAsGuest();
-        setLoading(false);
-        if (result.success) navigate('/menu');
-    };
+
 
     return (
         <div className="welcome-page">
@@ -46,13 +41,6 @@ export default function Welcome() {
                             <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                         </svg>
                         {loading ? 'Conectando...' : 'Continuar con Google'}
-                    </button>
-                    <button
-                        className="welcome-guest-btn"
-                        onClick={handleGuestLogin}
-                        disabled={loading}
-                    >
-                        Entrar como invitado
                     </button>
                 </div>
             </div>

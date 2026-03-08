@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useOrders, getStatusLabel, getStatusIcon, getStatusColor } from '../../hooks/useOrders';
+import { useOrders, getStatusLabel, getStatusIcon, getStatusColor } from '../../contexts/OrdersContext';
 import { generateAdminWhatsAppURL } from '../../utils/whatsappConfirm';
 import { playNotificationSound, showToast } from '../../utils/notifications';
 import EmptyState from '../../components/UI/EmptyState';
@@ -24,7 +24,7 @@ const NEXT_STATUS = {
 
 export default function AdminOrders() {
     const { user } = useAuth();
-    const { orders, loading, newOrdersCount, updateOrderStatus, markAsSeen } = useOrders(user?.uid, true);
+    const { orders, loading, newOrdersCount, updateOrderStatus, markAsSeen } = useOrders();
     const [activeTab, setActiveTab] = useState('pending');
     const prevNewCount = useRef(0);
 

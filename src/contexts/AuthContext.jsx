@@ -1,19 +1,15 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db, ADMIN_EMAIL, isDemoMode } from '../config/firebase';
-import { signInWithPopup, onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
-
-const AUTH_TIMEOUT_MS = 3000; // 3 seconds max wait for Firebase Auth
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
-    const timeoutRef = useRef(null);
-    const authResolvedRef = useRef(false);
 
     useEffect(() => {
         if (isDemoMode) {
@@ -28,67 +24,129 @@ export function AuthProvider({ children }) {
             return;
         }
 
-        // Safety timeout: if Firebase Auth takes too long, stop blocking the UI
-        timeoutRef.current = setTimeout(() => {
-            if (!authResolvedRef.current) {
-                console.warn('Firebase Auth timeout - allowing UI to render');
-                setLoading(false);
-            }
-        }, AUTH_TIMEOUT_MS);
-
+        console.time('onAuthStateChanged_trigger');
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            authResolvedRef.current = true;
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
+            console.timeEnd('onAuthStateChanged_trigger');
+            console.time('AuthContext_TotalProcess');
             if (firebaseUser) {
+                // PURGA AUTOMÁTICA DE SESIONES DE INVITADOS RESIDUALES:
+                // Si el navegador recuerda un inicio de sesión anónimo antiguo, lo expulsa.
+                if (firebaseUser.isAnonymous) {
+                    console.warn('⚠️ Sesión anónima antigua detectada en caché. Expulsando usuario force...');
+                    signOut(auth);
+                    setUser(null);
+                    setUserData(null);
+                    setIsAdmin(false);
+                    setLoading(false);
+                    return;
+                }
+
+                console.log('User found in auth state:', firebaseUser.uid);
                 setUser(firebaseUser);
                 setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
+
                 try {
+                    console.time('Firestore_CacheCheck');
                     const userDocRef = doc(db, 'users', firebaseUser.uid);
-                    const userDoc = await getDoc(userDocRef);
-                    if (userDoc.exists()) {
-                        setUserData(userDoc.data());
-                    } else {
-                        const newUserData = {
-                            displayName: firebaseUser.displayName || 'Invitado',
-                            email: firebaseUser.email || '',
-                            photoURL: firebaseUser.photoURL || '',
-                            phone: '',
-                            address: '',
-                            addressNotes: '',
-                            location: '',
-                            role: firebaseUser.email === ADMIN_EMAIL ? 'admin' : 'user',
-                            hasCompletedProfile: false,
-                            createdAt: serverTimestamp(),
-                            updatedAt: serverTimestamp()
-                        };
-                        await setDoc(userDocRef, newUserData);
-                        setUserData(newUserData);
-                    }
-                } catch (error) {
-                    // If Firestore fails to load user data, set basic data from auth
-                    setUserData({
-                        displayName: firebaseUser.displayName || 'Invitado',
-                        email: firebaseUser.email || '',
-                        photoURL: firebaseUser.photoURL || '',
-                        phone: '',
-                        address: '',
-                        role: firebaseUser.email === ADMIN_EMAIL ? 'admin' : 'user',
-                        hasCompletedProfile: false
+
+                    let userDataFromCache = null;
+
+                    // Helper para asegurar que la info fresca nativa de Google siempre gane sobre cachés viejos
+                    const enrichUserData = (data) => ({
+                        ...data,
+                        displayName: firebaseUser.displayName || data?.displayName || 'Krusty Fan',
+                        email: firebaseUser.email || data?.email || '',
+                        photoURL: firebaseUser.photoURL || data?.photoURL || ''
                     });
+
+                    // 1. INTENTO DE CACHÉ (Ultrarrápido, ~0ms)
+                    try {
+                        const cachedDoc = await getDocFromCache(userDocRef);
+                        if (cachedDoc.exists()) {
+                            userDataFromCache = cachedDoc.data();
+                            setUserData(enrichUserData(userDataFromCache));
+                            // ELIMINAMOS EL SPINNER INMEDIATAMENTE
+                            setLoading(false);
+                            console.log('✅ Perfil cargado desde caché al instante');
+                        }
+                    } catch (cacheError) {
+                        console.log('ℹ️ Caché vacío o no disponible, buscando en servidor...');
+                    }
+                    console.timeEnd('Firestore_CacheCheck');
+
+                    // 2. RECUPERACIÓN / ACTUALIZACIÓN EN SEGUNDO PLANO
+                    const fetchFromServer = async () => {
+                        console.time('Firestore_ServerFetch');
+                        const serverPromise = getDoc(userDocRef);
+
+                        let timeoutId;
+                        const timeoutPromise = new Promise((_, reject) => {
+                            timeoutId = setTimeout(() => {
+                                reject(new Error('Timeout de 4s superado buscando en servidor'));
+                            }, 4000);
+                        });
+
+                        try {
+                            const userDoc = userDataFromCache ? await serverPromise : await Promise.race([serverPromise, timeoutPromise]);
+                            clearTimeout(timeoutId);
+                            console.timeEnd('Firestore_ServerFetch');
+
+                            if (userDoc.exists()) {
+                                const serverData = userDoc.data();
+                                setUserData(enrichUserData(serverData)); // Actualiza datos silenciamente si el caché era viejo
+                                if (!userDataFromCache) setLoading(false);
+                            } else {
+                                // Es un usuario nuevo que acaba de loguearse pero que no tiene documento
+                                const newUserData = {
+                                    displayName: firebaseUser.displayName || 'Krusty Fan',
+                                    email: firebaseUser.email || '',
+                                    photoURL: firebaseUser.photoURL || '',
+                                    phone: '',
+                                    address: '',
+                                    addressNotes: '',
+                                    location: '',
+                                    role: firebaseUser.email === ADMIN_EMAIL ? 'admin' : 'user',
+                                    hasCompletedProfile: false,
+                                    createdAt: serverTimestamp(),
+                                    updatedAt: serverTimestamp()
+                                };
+                                await setDoc(userDocRef, newUserData);
+                                setUserData(newUserData);
+                                console.log('✅ Nuevo perfil guardado');
+                                if (!userDataFromCache) setLoading(false);
+                            }
+                        } catch (serverError) {
+                            clearTimeout(timeoutId);
+                            console.error('⚠️ Error/Timeout en servidor:', serverError.message);
+
+                            // Si no teníamos caché y falló todo lo demás, creamos un perfil temporal en memoria para NO bloquear la app
+                            if (!userDataFromCache) {
+                                console.log('⚠️ Usando perfil de emergencia por fallo de servidor');
+                                setUserData(enrichUserData({
+                                    role: firebaseUser.email === ADMIN_EMAIL ? 'admin' : 'user',
+                                    hasCompletedProfile: false
+                                }));
+                                setLoading(false);
+                            }
+                        }
+                    };
+
+                    fetchFromServer();
+
+                } catch (error) {
+                    console.error('Error fatal detectado:', error);
+                    setLoading(false);
                 }
             } else {
                 setUser(null);
                 setUserData(null);
                 setIsAdmin(false);
+                setLoading(false);
             }
-            setLoading(false);
+            console.timeEnd('AuthContext_TotalProcess');
         });
 
-        return () => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            unsubscribe();
-        };
+        return () => unsubscribe();
     }, []);
 
     const loginWithGoogle = async () => {
@@ -109,36 +167,7 @@ export function AuthProvider({ children }) {
         }
     };
 
-    const loginAsGuest = async () => {
-        if (isDemoMode) {
-            const mockUser = { uid: 'demo-guest', email: '', displayName: 'Invitado Demo' };
-            const mockUserData = { ...mockUser, role: 'user', hasCompletedProfile: false };
-            setUser(mockUser);
-            setUserData(mockUserData);
-            setIsAdmin(false);
-            localStorage.setItem('demoKrustyUser', JSON.stringify({ ...mockUser, userData: mockUserData }));
-            return { success: true, user: mockUser };
-        }
-        try {
-            const result = await signInAnonymously(auth);
-            return { success: true, user: result.user };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    };
 
-    const loginAsAdminDemo = async () => {
-        if (isDemoMode) {
-            const mockUser = { uid: 'demo-admin', email: ADMIN_EMAIL, displayName: 'Krusty Admin' };
-            const mockUserData = { ...mockUser, role: 'admin', hasCompletedProfile: true };
-            setUser(mockUser);
-            setUserData(mockUserData);
-            setIsAdmin(true);
-            localStorage.setItem('demoKrustyUser', JSON.stringify({ ...mockUser, userData: mockUserData }));
-            return { success: true, user: mockUser };
-        }
-        return { success: false, error: 'Not in demo mode' };
-    };
 
     const logout = async () => {
         if (isDemoMode) {
@@ -169,6 +198,7 @@ export function AuthProvider({ children }) {
             const userDocRef = doc(db, 'users', user.uid);
             const updateData = { ...data, updatedAt: serverTimestamp() };
             await setDoc(userDocRef, updateData, { merge: true });
+
             setUserData((prev) => ({ ...prev, ...data }));
             return { success: true };
         } catch (error) {
@@ -182,8 +212,6 @@ export function AuthProvider({ children }) {
         loading,
         isAdmin,
         loginWithGoogle,
-        loginAsGuest,
-        loginAsAdminDemo,
         logout,
         updateUserData
     };

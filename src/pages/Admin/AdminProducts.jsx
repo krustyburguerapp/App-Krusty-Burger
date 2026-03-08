@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useProducts } from '../../hooks/useProducts';
+import { useProducts } from '../../contexts/ProductsContext';
 import { CATEGORIES } from '../../data/menuData';
 import Modal from '../../components/UI/Modal';
 import Spinner from '../../components/UI/Spinner';

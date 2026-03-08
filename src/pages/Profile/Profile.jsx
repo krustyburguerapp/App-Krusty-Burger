@@ -34,7 +34,7 @@ export default function Profile() {
         navigate('/');
     };
 
-    const isGuest = user?.isAnonymous;
+
 
     return (
         <div className="page">
@@ -55,18 +55,13 @@ export default function Profile() {
                         )}
                     </div>
                     <div className="profile-info">
-                        <h3>{userData?.displayName || 'Invitado'}</h3>
-                        <p>{userData?.email || 'Sesión como invitado'}</p>
+                        <h3>{userData?.displayName || 'Krusty Fan'}</h3>
+                        <p>{userData?.email || 'Falta correo electrónico'}</p>
                         {isAdmin && <span className="badge badge-primary" style={{ marginTop: 4 }}>Admin</span>}
                     </div>
                 </div>
 
-                {isGuest && (
-                    <div className="profile-guest-notice">
-                        <span className="material-icons-round">info</span>
-                        <p>Estás como invitado. Tu información se perderá si cierras sesión. <strong>Inicia sesión con Google</strong> para guardar tus datos permanentemente.</p>
-                    </div>
-                )}
+
 
                 <div className="profile-section">
                     <div className="profile-section-header">

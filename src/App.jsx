@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ProductsProvider } from './contexts/ProductsContext';
+import { OrdersProvider } from './contexts/OrdersContext';
 import { CartProvider } from './contexts/CartContext';
 import Navbar from './components/Layout/Navbar';
 import BottomNav from './components/Layout/BottomNav';
@@ -27,6 +29,7 @@ function LoadingScreen() {
 
 function ProtectedRoute({ children }) {
     const { user, loading } = useAuth();
+
     if (loading) return <LoadingScreen />;
     if (!user) return <Navigate to="/" replace />;
     return children;
@@ -97,9 +100,13 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <CartProvider>
-                    <AppRoutes />
-                </CartProvider>
+                <ProductsProvider>
+                    <OrdersProvider>
+                        <CartProvider>
+                            <AppRoutes />
+                        </CartProvider>
+                    </OrdersProvider>
+                </ProductsProvider>
             </AuthProvider>
         </BrowserRouter>
     );

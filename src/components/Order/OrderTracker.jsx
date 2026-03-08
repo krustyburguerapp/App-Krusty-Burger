@@ -1,4 +1,4 @@
-import { getStatusLabel, getStatusIcon, getStatusColor } from '../../hooks/useOrders';
+import { getStatusLabel, getStatusIcon, getStatusColor } from '../../contexts/OrdersContext';
 import './OrderTracker.css';
 
 const STEPS = ['pending', 'accepted', 'preparing', 'ready', 'delivered'];

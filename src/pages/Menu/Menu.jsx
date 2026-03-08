@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useProducts } from '../../hooks/useProducts';
+import { useProducts } from '../../contexts/ProductsContext';
 import ProductCard from '../../components/Product/ProductCard';
 import CategoryFilter from '../../components/Product/CategoryFilter';
 import Spinner from '../../components/UI/Spinner';

@@ -1,5 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
-import { useOrders, getStatusLabel, getStatusColor } from '../../hooks/useOrders';
+import { useOrders, getStatusLabel, getStatusColor } from '../../contexts/OrdersContext';
 import OrderTracker from '../../components/Order/OrderTracker';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
@@ -7,7 +7,7 @@ import './OrderTracking.css';
 
 export default function OrderTracking() {
     const { user } = useAuth();
-    const { orders, loading, error } = useOrders(user?.uid);
+    const { orders, loading, error } = useOrders();
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
 

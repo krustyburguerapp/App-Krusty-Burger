@@ -1,20 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { db, storage, isDemoMode } from '../config/firebase';
 import {
-    collection, query, orderBy, onSnapshot, doc,
+    collection, query, orderBy, onSnapshot, doc, getDocsFromCache,
     addDoc, updateDoc, deleteDoc, serverTimestamp
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { compressImage } from '../utils/imageCompressor';
 import { DEMO_PRODUCTS } from '../data/menuData';
 
-const LOAD_TIMEOUT_MS = 3000; // 3 seconds max wait for Firestore
+const ProductsContext = createContext(null);
 
-export function useProducts() {
+export function ProductsProvider({ children }) {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const timeoutRef = useRef(null);
 
     useEffect(() => {
         if (isDemoMode) {
@@ -23,40 +22,62 @@ export function useProducts() {
             return;
         }
 
-        // Safety timeout: if Firestore takes too long, use demo products as fallback
-        timeoutRef.current = setTimeout(() => {
-            setProducts((prev) => {
-                if (prev.length === 0) {
-                    return DEMO_PRODUCTS;
-                }
-                return prev;
-            });
-            setLoading(false);
-        }, LOAD_TIMEOUT_MS);
-
         const productsRef = collection(db, 'products');
         const q = query(productsRef, orderBy('order', 'asc'));
 
+        let productsLoadedFromCache = false;
+
+        // 1. INTENTO DE CACHÉ (Carga Inmediata)
+        const loadFromCache = async () => {
+            try {
+                const cachedDocs = await getDocsFromCache(q);
+                if (!cachedDocs.empty) {
+                    const productsData = cachedDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setProducts(productsData);
+                    setLoading(false);
+                    productsLoadedFromCache = true;
+                    console.log('✅ Productos cargados desde caché');
+                }
+            } catch (error) {
+                console.log('ℹ️ Caché de productos vacío o no disponible.');
+            }
+        };
+
+        loadFromCache();
+
+        // 2. TIMEOUT DE SEGURIDAD (Evita cargar infinto si no hay caché y red está lenta)
+        const safetyTimeout = setTimeout(() => {
+            if (loading && !productsLoadedFromCache) {
+                console.warn('⚠️ Timeout esperando a Firestore para productos, usando demostración.');
+                setProducts(DEMO_PRODUCTS);
+                setLoading(false);
+                setError('Demostrando menú por defecto por conexión lenta.');
+            }
+        }, 2500);
+
+        // 3. RECUPERACIÓN / ACTUALIZACIÓN EN SEGUNDO PLANO
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            clearTimeout(safetyTimeout);
             const productsData = snapshot.docs.map((d) => ({
                 id: d.id,
                 ...d.data()
             }));
-            // If Firestore has no products, use demo data as fallback
+
             setProducts(productsData.length > 0 ? productsData : DEMO_PRODUCTS);
             setLoading(false);
             setError(null);
         }, (err) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            console.warn('Firestore products error, using fallback:', err.message);
-            setProducts(DEMO_PRODUCTS);
-            setError(err.message);
+            clearTimeout(safetyTimeout);
+            console.error('Error sincronizando productos de Firebase:', err.message);
+            if (!productsLoadedFromCache && products.length === 0) {
+                setProducts(DEMO_PRODUCTS); // Fallback amigable
+                setError('Modo sin conexión. Demostrando menú por defecto.');
+            }
             setLoading(false);
         });
 
         return () => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            clearTimeout(safetyTimeout);
             unsubscribe();
         };
     }, []);
@@ -130,5 +151,15 @@ export function useProducts() {
         }
     };
 
-    return { products, loading, error, addProduct, updateProduct, deleteProduct, toggleAvailability };
+    return (
+        <ProductsContext.Provider value={{ products, loading, error, addProduct, updateProduct, deleteProduct, toggleAvailability }}>
+            {children}
+        </ProductsContext.Provider>
+    );
+}
+
+export function useProducts() {
+    const context = useContext(ProductsContext);
+    if (!context) throw new Error('useProducts debe usarse dentro de ProductsProvider');
+    return context;
 }

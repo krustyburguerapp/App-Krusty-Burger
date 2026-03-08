@@ -1,19 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { db, isDemoMode } from '../config/firebase';
 import {
-    collection, query, where, orderBy, onSnapshot, doc,
+    collection, onSnapshot, doc, getDocsFromCache, query, where,
     addDoc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
+import { useAuth } from './AuthContext';
 
-const LOAD_TIMEOUT_MS = 4000; // 4 seconds max wait for Firestore
+const OrdersContext = createContext(null);
 
-export function useOrders(userId, isAdmin = false) {
+export function OrdersProvider({ children }) {
+    const { user, isAdmin } = useAuth();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [newOrdersCount, setNewOrdersCount] = useState(0);
-    const timeoutRef = useRef(null);
+
+    const userId = user?.uid;
 
     useEffect(() => {
         if (!userId && !isAdmin) {
@@ -38,27 +41,71 @@ export function useOrders(userId, isAdmin = false) {
             return () => clearInterval(interval);
         }
 
-        // Safety timeout: if Firestore takes too long, stop loading and show empty state
-        timeoutRef.current = setTimeout(() => {
-            setLoading(false);
-            setError('La conexión con el servidor tardó demasiado. Intenta recargar la página.');
-        }, LOAD_TIMEOUT_MS);
-
         const ordersRef = collection(db, 'orders');
-        let q;
 
-        if (isAdmin) {
-            q = query(ordersRef, orderBy('createdAt', 'desc'));
-        } else {
-            q = query(ordersRef, where('userId', '==', userId), orderBy('createdAt', 'desc'));
-        }
+        // Optimización: Si no es admin, filtramos directo en la query si es posible (aunque para caché general leer la colección basta)
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            const ordersData = snapshot.docs.map((d) => ({
+        let ordersLoadedFromCache = false;
+
+        // 1. INTENTO DE CACHÉ
+        const loadFromCache = async () => {
+            try {
+                // Intentamos leer el caché general de órdenes
+                const cachedDocs = await getDocsFromCache(ordersRef);
+                if (!cachedDocs.empty) {
+                    let ordersData = cachedDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                    if (!isAdmin) {
+                        ordersData = ordersData.filter(o => o.userId === userId);
+                    }
+
+                    ordersData.sort((a, b) => {
+                        const dateA = a.createdAt?.seconds || 0;
+                        const dateB = b.createdAt?.seconds || 0;
+                        return dateB - dateA;
+                    });
+
+                    setOrders(ordersData);
+                    if (isAdmin) setNewOrdersCount(ordersData.filter((o) => o.isNew).length);
+
+                    setLoading(false);
+                    ordersLoadedFromCache = true;
+                }
+            } catch (e) {
+                console.log('ℹ️ Caché de órdenes vacío.');
+            }
+        };
+
+        loadFromCache();
+
+        // 2. TIMEOUT DE SEGURIDAD (No bloquear la app si Orders falla)
+        const safetyTimeout = setTimeout(() => {
+            if (loading && !ordersLoadedFromCache) {
+                console.warn('⚠️ Timeout en OrdersContext, quitando loading...');
+                setLoading(false);
+            }
+        }, 2000);
+
+        // 3. BACKGROUND FETCH
+        const unsubscribe = onSnapshot(ordersRef, (snapshot) => {
+            clearTimeout(safetyTimeout);
+            let ordersData = snapshot.docs.map((d) => ({
                 id: d.id,
                 ...d.data()
             }));
+
+            // 1. Filtrado Local
+            if (!isAdmin) {
+                ordersData = ordersData.filter(o => o.userId === userId);
+            }
+
+            // 2. Ordenado Local (Más nuevo a viejo)
+            ordersData.sort((a, b) => {
+                const dateA = a.createdAt?.seconds || 0;
+                const dateB = b.createdAt?.seconds || 0;
+                return dateB - dateA;
+            });
+
             setOrders(ordersData);
             if (isAdmin) {
                 setNewOrdersCount(ordersData.filter((o) => o.isNew).length);
@@ -66,14 +113,14 @@ export function useOrders(userId, isAdmin = false) {
             setLoading(false);
             setError(null);
         }, (err) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            console.warn('Firestore orders error:', err.message);
-            setError(err.message);
+            clearTimeout(safetyTimeout);
+            console.error('Error cargando los pedidos:', err.message);
+            setError('Error al conectar con la base de datos de pedidos.');
             setLoading(false);
         });
 
         return () => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+            clearTimeout(safetyTimeout);
             unsubscribe();
         };
     }, [userId, isAdmin]);
@@ -98,7 +145,7 @@ export function useOrders(userId, isAdmin = false) {
         }
 
         try {
-            const docRef = await addDoc(collection(db, 'orders'), {
+            const orderDataToSave = {
                 ...orderData,
                 status: 'pending',
                 statusHistory: [{
@@ -111,10 +158,13 @@ export function useOrders(userId, isAdmin = false) {
                 actualTime: 0,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            const docRef = await addDoc(collection(db, 'orders'), orderDataToSave);
             return { success: true, orderId: docRef.id };
         } catch (error) {
-            return { success: false, error: error.message };
+            console.error('Error al crear pedido en db:', error);
+            return { success: false, error: 'Hubo un error al crear tu pedido. Revisa tu conexión.' };
         }
     };
 
@@ -187,7 +237,17 @@ export function useOrders(userId, isAdmin = false) {
         }
     };
 
-    return { orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen };
+    return (
+        <OrdersContext.Provider value={{ orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen }}>
+            {children}
+        </OrdersContext.Provider>
+    );
+}
+
+export function useOrders() {
+    const context = useContext(OrdersContext);
+    if (!context) throw new Error('useOrders debe usarse dentro de OrdersProvider');
+    return context;
 }
 
 export function getStatusLabel(status) {
