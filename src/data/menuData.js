@@ -1,6 +1,8 @@
 export const CATEGORIES = [
     { id: 'individual', label: 'Individual', icon: 'person' },
-    { id: 'familiar', label: 'Familiar', icon: 'groups' }
+    { id: 'familiar', label: 'Familiar', icon: 'groups' },
+    { id: 'bebidas', label: 'Bebidas Individuales', icon: 'local_drink' },
+    { id: 'adicionales', label: 'Adicionales', icon: 'add_circle' }
 ];
 
 export const DEMO_PRODUCTS = [

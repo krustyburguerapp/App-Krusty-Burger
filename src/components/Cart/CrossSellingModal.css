@@ -1,0 +1,191 @@
+.cross-selling-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.cs-step {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    text-align: center;
+}
+
+.cs-icon-header {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+    animation: bounce 2s infinite ease-in-out;
+}
+
+.cs-title {
+    font-family: var(--font-display);
+    font-size: var(--font-size-xl);
+    color: var(--color-primary);
+    margin: 0;
+}
+
+.cs-desc {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-base);
+}
+
+/* Combos */
+.cs-combo-selection {
+    background: var(--color-bg);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    margin-top: var(--spacing-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+.cs-label {
+    display: block;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+    margin-bottom: var(--spacing-sm);
+}
+
+.cs-qty-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xs);
+}
+
+.cs-qty {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    min-width: 40px;
+}
+
+.cs-muted {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.cs-drink-selection {
+    margin-top: var(--spacing-md);
+}
+
+.cs-drink-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+}
+
+@media (min-width: 480px) {
+    .cs-drink-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.cs-drink-option {
+    background: var(--color-bg);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast) var(--ease-default);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 60px;
+    box-shadow: var(--shadow-sm);
+}
+
+.cs-drink-option.selected {
+    border-color: var(--color-primary);
+    background: rgba(211, 47, 47, 0.05);
+    /* Soft primary */
+    transform: scale(1.05);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-primary);
+}
+
+.cs-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+}
+
+.cs-reject-btn {
+    color: var(--color-text-secondary);
+}
+
+/* Item Lists (Bebidas, Adicionales) */
+.cs-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    max-height: 40vh;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.cs-empty {
+    color: var(--color-text-secondary);
+    font-style: italic;
+    padding: var(--spacing-md);
+}
+
+.cs-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    background: var(--color-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.cs-item-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.cs-item-name {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text);
+}
+
+.cs-item-price {
+    font-size: var(--font-size-sm);
+    color: var(--color-primary);
+}
+
+.cs-item-qty {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.cs-item-qty span {
+    font-weight: var(--font-weight-bold);
+    min-width: 20px;
+}
+
+.cs-finish-btn {
+    gap: var(--spacing-xs);
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn var(--transition-normal) var(--ease-out);
+}
+
+@keyframes bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+}

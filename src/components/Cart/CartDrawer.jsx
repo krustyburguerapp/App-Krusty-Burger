@@ -4,12 +4,12 @@ import EmptyState from '../UI/EmptyState';
 import './CartDrawer.css';
 
 export default function CartDrawer() {
-    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems } = useCart();
+    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems, setIsCrossSellingOpen } = useCart();
     const navigate = useNavigate();
 
     const handleCheckout = () => {
         setIsOpen(false);
-        navigate('/checkout');
+        setIsCrossSellingOpen(true);
     };
 
     if (!isOpen) return null;
@@ -70,7 +70,7 @@ export default function CartDrawer() {
                         </div>
                         <button className="btn btn-primary btn-lg btn-full" onClick={handleCheckout}>
                             <span className="material-icons-round">shopping_bag</span>
-                            Ir al Checkout
+                            Continuar tu compra
                         </button>
                     </div>
                 )}
