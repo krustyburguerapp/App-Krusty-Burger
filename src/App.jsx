@@ -7,6 +7,7 @@ import { CartProvider } from './contexts/CartContext';
 import Navbar from './components/Layout/Navbar';
 import BottomNav from './components/Layout/BottomNav';
 import CartDrawer from './components/Cart/CartDrawer';
+import FloatingCartBtn from './components/Cart/FloatingCartBtn';
 import Spinner from './components/UI/Spinner';
 
 import Welcome from './pages/Welcome/Welcome';
@@ -49,6 +50,7 @@ function AppLayout({ children }) {
             <Navbar />
             <Suspense fallback={<LoadingScreen />}>{children}</Suspense>
             <CartDrawer />
+            <FloatingCartBtn />
             <BottomNav />
             <InstallPrompt />
         </>
