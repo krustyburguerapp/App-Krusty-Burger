@@ -131,10 +131,6 @@ export default function CrossSellingModal() {
     const toggleCombo = (combo, add) => {
         const existing = selectedCombos.find(c => c.combo.id === combo.id);
         if (add) {
-            if (totalCombosSelected >= totalIndividualQty) {
-                alert(`Solo puedes pedir un máximo de ${totalIndividualQty} combos, acorde a tu cantidad de productos individuales en el carrito.`);
-                return;
-            }
             if (existing) {
                 setSelectedCombos(selectedCombos.map(c => c.combo.id === combo.id ? { ...c, qty: c.qty + 1 } : c));
             } else {
