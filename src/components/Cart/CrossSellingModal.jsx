@@ -40,7 +40,7 @@ export default function CrossSellingModal() {
     const [step, setStep] = useState('combos');
 
     // Estado para selecciones temporales antes de pasarlas al carrito
-    const [tempCombosQty, setTempCombosQty] = useState(1);
+    const [tempCombosQty, setTempCombosQty] = useState(0);
     const [selectedDrinkForCombo, setSelectedDrinkForCombo] = useState(null);
     const [tempBebidas, setTempBebidas] = useState([]); // Array de objetos { product, qty }
     const [tempAdicionales, setTempAdicionales] = useState([]);
@@ -49,7 +49,7 @@ export default function CrossSellingModal() {
         if (isCrossSellingOpen) {
             if (hasIndividualItems) {
                 setStep('combos');
-                setTempCombosQty(1);
+                setTempCombosQty(0);
             } else {
                 setStep('adicionales');
             }
@@ -75,9 +75,14 @@ export default function CrossSellingModal() {
         }
     };
 
-    const handleAcceptCombo = () => {
+    const handleComboAction = () => {
+        if (tempCombosQty === 0) {
+            setStep('bebidas'); // Si no lleva combo, pasamos a ofrecer bebidas
+            return;
+        }
+
         if (!selectedDrinkForCombo) {
-            alert("Por favor selecciona una bebida para tu combo.");
+            alert("Por favor selecciona una bebida para tus combos.");
             return;
         }
         // Agregamos el "combo" al carrito usando un id temporal y el nombre de la bebida
@@ -85,7 +90,7 @@ export default function CrossSellingModal() {
             id: `combo-${Date.now()}`,
             name: `Combo Upgrade (Papas + ${selectedDrinkForCombo.name})`,
             price: COMBO_UPGRADE_PRICE,
-            imageURL: '',
+            imageURL: selectedDrinkForCombo.imageURL || '',
             category: 'combo_system'
         };
         // Lo agregamos tantas veces como se indicó
@@ -94,11 +99,6 @@ export default function CrossSellingModal() {
         }
         // Como aceptó combo, pasa directo a adicionales
         setStep('adicionales');
-    };
-
-    const handleRejectCombo = () => {
-        // No quiso combo, le ofrecemos bebidas sueltas
-        setStep('bebidas');
     };
 
     const finishAndGoToCheckout = () => {
@@ -154,20 +154,19 @@ export default function CrossSellingModal() {
                         <div className="cs-combo-selection">
                             <label className="cs-label">¿Cuántos combos deseas llevar?</label>
                             <div className="cs-qty-controls">
-                                <button className="btn btn-icon btn-ghost" onClick={() => setTempCombosQty(Math.max(1, tempCombosQty - 1))}>
+                                <button className="btn btn-icon btn-ghost" onClick={() => setTempCombosQty(Math.max(0, tempCombosQty - 1))}>
                                     <span className="material-icons-round">remove</span>
                                 </button>
                                 <span className="cs-qty">{tempCombosQty}</span>
-                                <button className="btn btn-icon btn-ghost" onClick={() => setTempCombosQty(Math.min(totalIndividualQty, tempCombosQty + 1))}>
+                                <button className="btn btn-icon btn-ghost" onClick={() => setTempCombosQty(tempCombosQty + 1)}>
                                     <span className="material-icons-round">add</span>
                                 </button>
                             </div>
-                            <span className="cs-muted">Máx: {totalIndividualQty} (por tus {totalIndividualQty} hamburguesas)</span>
                         </div>
 
-                        {bebidasList.length > 0 && (
-                            <div className="cs-drink-selection">
-                                <label className="cs-label">Elige tu bebida para el combo:</label>
+                        {tempCombosQty > 0 && bebidasList.length > 0 && (
+                            <div className="cs-drink-selection fade-in">
+                                <label className="cs-label">Elige tu bebida para los combos:</label>
                                 <div className="cs-drink-grid">
                                     {bebidasList.map(bebida => (
                                         <div
@@ -175,6 +174,11 @@ export default function CrossSellingModal() {
                                             className={`cs-drink-option ${selectedDrinkForCombo?.id === bebida.id ? 'selected' : ''}`}
                                             onClick={() => setSelectedDrinkForCombo(bebida)}
                                         >
+                                            {bebida.imageURL ? (
+                                                <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" />
+                                            ) : (
+                                                <span className="material-icons-round cs-drink-icon">local_drink</span>
+                                            )}
                                             <span className="cs-drink-name">{bebida.name}</span>
                                         </div>
                                     ))}
@@ -182,12 +186,9 @@ export default function CrossSellingModal() {
                             </div>
                         )}
 
-                        <div className="cs-actions">
-                            <button className="btn btn-primary btn-lg btn-full" onClick={handleAcceptCombo}>
-                                ¡Sí, quiero Combo!
-                            </button>
-                            <button className="btn btn-ghost btn-full cs-reject-btn" onClick={handleRejectCombo}>
-                                No, gracias. Continuar.
+                        <div className="cs-actions single-action" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <button className={`btn btn-lg btn-full ${tempCombosQty > 0 ? 'btn-primary' : 'btn-outline'}`} onClick={handleComboAction}>
+                                {tempCombosQty > 0 ? '¡Agregar Combos!' : 'Continuar sin combo'}
                             </button>
                         </div>
                     </div>
