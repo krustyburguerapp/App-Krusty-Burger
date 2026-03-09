@@ -43,14 +43,24 @@ export default function CrossSellingModal() {
         }, 0);
     }, [items, products]);
 
-    // 'combos' | 'bebidas' | 'bebidas_familiares' | 'adicionales'
+    const totalFamiliarQty = useMemo(() => {
+        return items.reduce((acc, cartItem) => {
+            const productInfo = products.find(p => p.id === cartItem.productId);
+            if (productInfo && productInfo.category === 'familiar') {
+                return acc + cartItem.quantity;
+            }
+            return acc;
+        }, 0);
+    }, [items, products]);
+
+    // 'combos' | 'bebidas' | 'sabores_familiar' | 'adicionales'
     const [step, setStep] = useState('combos');
 
     // Estado para selecciones temporales antes de pasarlas al carrito
     const [tempCombosQty, setTempCombosQty] = useState(0);
     const [selectedComboDrinks, setSelectedComboDrinks] = useState([]); // Array de objetos { product, qty }
     const [tempBebidas, setTempBebidas] = useState([]); // Array de objetos { product, qty }
-    const [tempBebidasFamiliares, setTempBebidasFamiliares] = useState([]); // Array de objetos { product, qty }
+    const [selectedFamiliarDrinks, setSelectedFamiliarDrinks] = useState([]); // Array de objetos { product, qty }
     const [tempAdicionales, setTempAdicionales] = useState([]);
 
     useEffect(() => {
@@ -59,13 +69,13 @@ export default function CrossSellingModal() {
                 setStep('combos');
                 setTempCombosQty(0);
             } else if (hasFamiliarItems) {
-                setStep('bebidas_familiares');
+                setStep('sabores_familiar');
             } else {
                 setStep('adicionales');
             }
             setSelectedComboDrinks([]);
             setTempBebidas([]);
-            setTempBebidasFamiliares([]);
+            setSelectedFamiliarDrinks([]);
             setTempAdicionales([]);
         }
     }, [isCrossSellingOpen, hasIndividualItems, hasFamiliarItems]);
@@ -125,10 +135,8 @@ export default function CrossSellingModal() {
 
     const proceedToNext = () => {
         if (step === 'bebidas') {
-            if (hasFamiliarItems) setStep('bebidas_familiares');
+            if (hasFamiliarItems) setStep('sabores_familiar');
             else setStep('adicionales');
-        } else if (step === 'bebidas_familiares') {
-            setStep('adicionales');
         } else if (step === 'adicionales') {
             finishAndGoToCheckout();
         }
@@ -159,20 +167,37 @@ export default function CrossSellingModal() {
             }
         });
 
-        if (hasFamiliarItems) setStep('bebidas_familiares');
+        if (hasFamiliarItems) setStep('sabores_familiar');
         else setStep('adicionales');
+    };
+
+    const handleFamiliarAction = () => {
+        const totalSelectedFamiliar = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
+        if (totalSelectedFamiliar !== totalFamiliarQty) {
+            alert(`Por favor selecciona las ${totalFamiliarQty} bebidas incluidas de tus menús familiares. Te faltan ${totalFamiliarQty - totalSelectedFamiliar}.`);
+            return;
+        }
+
+        // Agregamos las bebidas gratis asociadas al menú familiar
+        selectedFamiliarDrinks.forEach(drinkItem => {
+            for (let i = 0; i < drinkItem.qty; i++) {
+                const includedDrink = {
+                    id: `included-${Date.now()}-${Math.random()}`,
+                    name: `Bebida Familiar Incluida (${drinkItem.product.name})`,
+                    price: 0,
+                    imageURL: drinkItem.product.imageURL || '',
+                    category: 'combo_system'
+                };
+                addItem(includedDrink);
+            }
+        });
+
+        setStep('adicionales');
     };
 
     const finishAndGoToCheckout = () => {
         // Agregar las bebidas sueltas al carrito
         tempBebidas.forEach(item => {
-            for (let i = 0; i < item.qty; i++) {
-                addItem(item.product);
-            }
-        });
-
-        // Agregar las bebidas familiares al carrito
-        tempBebidasFamiliares.forEach(item => {
             for (let i = 0; i < item.qty; i++) {
                 addItem(item.product);
             }
@@ -187,6 +212,33 @@ export default function CrossSellingModal() {
 
         setIsCrossSellingOpen(false);
         navigate('/checkout');
+    };
+
+    const toggleFamiliarDrink = (bebida, add) => {
+        const existing = selectedFamiliarDrinks.find(item => item.product.id === bebida.id);
+        const totalSelectedFamiliar = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
+
+        if (add) {
+            if (totalFamiliarQty === 1) {
+                setSelectedFamiliarDrinks([{ product: bebida, qty: 1 }]);
+                return;
+            }
+            if (totalSelectedFamiliar >= totalFamiliarQty) return;
+
+            if (existing) {
+                setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty + 1 } : i));
+            } else {
+                setSelectedFamiliarDrinks([...selectedFamiliarDrinks, { product: bebida, qty: 1 }]);
+            }
+        } else {
+            if (existing) {
+                if (existing.qty > 1) {
+                    setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty - 1 } : i));
+                } else {
+                    setSelectedFamiliarDrinks(selectedFamiliarDrinks.filter(i => i.product.id !== bebida.id));
+                }
+            }
+        }
     };
 
     const toggleTempItem = (product, list, setList, add) => {
@@ -289,8 +341,8 @@ export default function CrossSellingModal() {
                         <p className="cs-desc">Refresca tu pedido individual con nuestras gaseosas y jugos.</p>
 
                         <div className="cs-items-list">
-                            {bebidasList.length === 0 && <p className="cs-empty">No hay bebidas individuales disponibles.</p>}
-                            {bebidasList.map(bebida => {
+                            {[...bebidasList, ...bebidasFamiliaresList].length === 0 && <p className="cs-empty">No hay bebidas disponibles.</p>}
+                            {[...bebidasList, ...bebidasFamiliaresList].map(bebida => {
                                 const selected = tempBebidas.find(b => b.product.id === bebida.id);
                                 const qty = selected ? selected.qty : 0;
                                 return (
@@ -335,55 +387,62 @@ export default function CrossSellingModal() {
                     </div>
                 )}
 
-                {/* --- PASO: BEBIDAS FAMILIARES --- */}
-                {step === 'bebidas_familiares' && (
+                {/* --- PASO: SABORES BEBIDAS FAMILIARES --- */}
+                {step === 'sabores_familiar' && (
                     <div className="cs-step fade-in">
                         <div className="cs-icon-header">🍾</div>
-                        <h3 className="cs-title">¡Para compartir en familia!</h3>
-                        <p className="cs-desc">Acompaña tus combos familiares con la bebida ideal.</p>
+                        <h3 className="cs-title">Sabor de tus gaseosas grandes</h3>
+                        <p className="cs-desc">Tus menús familiares incluyen gaseosa. Por favor elige los sabores.</p>
 
-                        <div className="cs-items-list">
-                            {bebidasFamiliaresList.length === 0 && <p className="cs-empty">No hay bebidas familiares disponibles.</p>}
-                            {bebidasFamiliaresList.map(bebida => {
-                                const selected = tempBebidasFamiliares.find(b => b.product.id === bebida.id);
-                                const qty = selected ? selected.qty : 0;
-                                return (
-                                    <div key={bebida.id} className="cs-item-row">
-                                        {bebida.imageURL ? (
-                                            <img src={bebida.imageURL} alt={bebida.name} className="cs-item-image" />
-                                        ) : (
-                                            <div className="cs-item-image-placeholder">
-                                                <span className="material-icons-round">liquor</span>
-                                            </div>
-                                        )}
-                                        <div className="cs-item-info">
-                                            <span className="cs-item-name">{bebida.name}</span>
-                                            <span className="cs-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
-                                        </div>
-                                        <div className="cs-item-qty">
-                                            {qty > 0 ? (
-                                                <>
-                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, false)}>
-                                                        <span className="material-icons-round">remove</span>
-                                                    </button>
-                                                    <span>{qty}</span>
-                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, true)}>
-                                                        <span className="material-icons-round">add</span>
-                                                    </button>
-                                                </>
+                        <div className="cs-drink-selection fade-in">
+                            <label className="cs-label">
+                                Elige {totalFamiliarQty} {totalFamiliarQty === 1 ? 'sabor' : 'sabores'}:
+                                {selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0) < totalFamiliarQty && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalFamiliarQty - selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0)} por elegir</span>}
+                            </label>
+
+                            {bebidasFamiliaresList.length === 0 && (
+                                <p className="cs-empty">No hay sabores familiares disponibles actualmente.</p>
+                            )}
+
+                            <div className="cs-drink-grid">
+                                {bebidasFamiliaresList.map(bebida => {
+                                    const selected = selectedFamiliarDrinks.find(d => d.product.id === bebida.id);
+                                    const qty = selected ? selected.qty : 0;
+                                    const currTotalFamiliarSelected = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
+
+                                    return (
+                                        <div
+                                            key={bebida.id}
+                                            className={`cs-drink-option ${qty > 0 ? 'selected' : ''}`}
+                                            onClick={() => toggleFamiliarDrink(bebida, true)}
+                                        >
+                                            {bebida.imageURL ? (
+                                                <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" />
                                             ) : (
-                                                <button className="btn btn-outline btn-sm" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, true)}>
-                                                    Agregar
-                                                </button>
+                                                <span className="material-icons-round cs-drink-icon">liquor</span>
+                                            )}
+                                            <span className="cs-drink-name">{bebida.name}</span>
+
+                                            {qty > 0 && totalFamiliarQty > 1 && (
+                                                <div className="cs-drink-qty-mini fade-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', borderRadius: '20px', padding: '2px 6px', marginTop: '6px' }}>
+                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleFamiliarDrink(bebida, false)} style={{ width: 24, height: 24, minHeight: 0 }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 16 }}>remove</span>
+                                                    </button>
+                                                    <span style={{ fontWeight: 'bold', fontSize: 14 }}>{qty}</span>
+                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleFamiliarDrink(bebida, true)} disabled={currTotalFamiliarSelected >= totalFamiliarQty} style={{ width: 24, height: 24, minHeight: 0 }}>
+                                                        <span className="material-icons-round" style={{ fontSize: 16 }}>add</span>
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="cs-actions single-action">
-                            <button className="btn btn-primary btn-lg btn-full" onClick={proceedToNext}>
-                                Continuar
+
+                        <div className="cs-actions single-action" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <button className="btn btn-primary btn-lg btn-full" onClick={handleFamiliarAction}>
+                                ¡Elegir Sabores!
                             </button>
                         </div>
                     </div>
