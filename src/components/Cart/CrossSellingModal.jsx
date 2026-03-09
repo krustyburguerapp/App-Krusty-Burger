@@ -8,6 +8,7 @@ import './CrossSellingModal.css';
 const COMBO_OPTIONS = [
     { id: 'combo_pequeno', name: 'Combo Pequeño', description: 'Porción de Papas y Bebida Individual', price: 4000, type: 'individual' },
     { id: 'combo_mediano', name: 'Combo Mediano', description: 'Porción de papas grande y Bebida Individual', price: 5000, type: 'individual' },
+    { id: 'combo_fam_pequeno', name: 'Combo Familiar Pequeño', description: 'Porción de Papas y Bebida Familiar', price: 6000, type: 'familiar' },
     { id: 'combo_grande', name: 'Combo Grande', description: 'Porción de papas grande y Bebida Familiar', price: 7000, type: 'familiar' },
 ];
 
