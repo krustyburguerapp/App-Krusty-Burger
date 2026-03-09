@@ -47,11 +47,14 @@
 }
 
 .install-prompt-logo {
-    width: 64px;
-    height: 64px;
-    border-radius: var(--radius-md);
-    object-fit: cover;
+    width: 70px;
+    height: 70px;
+    border-radius: var(--radius-full);
+    object-fit: contain;
+    padding: 8px;
+    background: white;
     box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
 }
 
 .install-prompt-content h3 {
