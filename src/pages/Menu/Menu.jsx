@@ -14,11 +14,22 @@ export default function Menu() {
     const storeStatus = getStoreStatus();
 
     const filtered = useMemo(() => {
-        return products.filter((p) => {
-            const matchCategory = activeCategory === 'all' || p.category === activeCategory;
-            const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
-            return matchCategory && matchSearch;
-        });
+        return products
+            .filter((p) => {
+                // Ocultar categorías de ventas cruzadas (cross-selling) del panel principal
+                if (['bebidas', 'bebidas_familiares', 'adicionales'].includes(p.category)) {
+                    return false;
+                }
+                const matchCategory = activeCategory === 'all' || p.category === activeCategory;
+                const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
+                return matchCategory && matchSearch;
+            })
+            .sort((a, b) => {
+                // Destacados primero
+                if (a.isFeatured && !b.isFeatured) return -1;
+                if (!a.isFeatured && b.isFeatured) return 1;
+                return 0; // Mantener orden original si ambos son o no son destacados
+            });
     }, [products, activeCategory, search]);
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
