@@ -6,8 +6,7 @@ export default function InstallPrompt() {
     const [showPrompt, setShowPrompt] = useState(false);
 
     useEffect(() => {
-        // Check if already installed or dismissed recently
-        const isDismissed = localStorage.getItem('krusty_install_dismissed') === 'true';
+        // Check if already installed
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 
         if (isStandalone) {
@@ -20,10 +19,8 @@ export default function InstallPrompt() {
             // Stash the event so it can be triggered later.
             setDeferredPrompt(e);
 
-            // Show the prompt if not dismissed
-            if (!isDismissed) {
-                setShowPrompt(true);
-            }
+            // Show the prompt
+            setShowPrompt(true);
         };
 
         window.addEventListener('beforeinstallprompt', handler);
@@ -32,7 +29,7 @@ export default function InstallPrompt() {
         const isIos = /ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase());
         const isSafari = /safari/.test(navigator.userAgent.toLowerCase()) && !/chrome/.test(navigator.userAgent.toLowerCase());
 
-        if (isIos && isSafari && !isStandalone && !isDismissed) {
+        if (isIos && isSafari && !isStandalone) {
             setShowPrompt(true);
         }
 
@@ -61,7 +58,6 @@ export default function InstallPrompt() {
 
     const handleDismiss = () => {
         setShowPrompt(false);
-        localStorage.setItem('krusty_install_dismissed', 'true'); // don't bother for now
     };
 
     if (!showPrompt) return null;
