@@ -60,29 +60,37 @@ export default function Checkout() {
             return;
         }
         setLoading(true);
+
+        // updateUserData se dispara en background (fire-and-forget)
+        // porque setDoc con merge:true necesita leer del servidor para combinar datos
+        // y esa lectura puede colgar por red lenta. NO debe bloquear la creacion del pedido.
         if (!hasProfile || editMode) {
-            await updateUserData({ phone, address, addressNotes, hasCompletedProfile: true });
+            updateUserData({ phone, address, addressNotes, hasCompletedProfile: true }).catch(() => { });
         }
+
+        // Sanitización brutal: Asegurar que NO existan posibles "undefined" o funciones perdidas
+        // que traben a Firebase
         const orderData = {
             userId: user.uid,
             userName: userData?.displayName || 'Krusty Fan',
-            userPhone: phone,
-            userAddress: address,
-            userAddressNotes: addressNotes,
-            deliveryType,
-            items,
-            subtotal,
-            deliveryFee,
-            total,
-            estimatedTime
+            userPhone: phone || '',
+            userAddress: address || '',
+            userAddressNotes: addressNotes || '',
+            deliveryType: deliveryType || 'delivery',
+            items: JSON.parse(JSON.stringify(items)),
+            subtotal: subtotal || 0,
+            deliveryFee: deliveryFee || 0,
+            total: total || 0,
+            estimatedTime: estimatedTime || 0
         };
+
         const result = await createOrder(orderData);
         setLoading(false);
         if (result.success) {
             clearCart();
             navigate(`/order-confirmation/${result.orderId}`, { state: { order: { ...orderData, id: result.orderId, estimatedTime } } });
         } else {
-            showToast('Error al crear el pedido. Intenta de nuevo.', 'error');
+            showToast(result.error || 'Error al crear el pedido. Intenta de nuevo.', 'error', 8000);
         }
     };
 

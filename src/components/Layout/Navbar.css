@@ -97,6 +97,10 @@
     border: 2px solid var(--color-border-light);
 }
 
+.navbar-orders-btn {
+    display: none;
+}
+
 @media (min-width: 768px) {
     .navbar-inner {
         padding: 0 var(--spacing-xl);
@@ -109,5 +113,9 @@
 
     .navbar-title {
         font-size: var(--font-size-lg);
+    }
+
+    .navbar-orders-btn {
+        display: inline-flex;
     }
 }

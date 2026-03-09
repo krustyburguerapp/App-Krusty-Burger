@@ -24,7 +24,7 @@
 }
 
 .menu-search-input {
-    padding-left: 2.5rem;
+    padding-left: 2.8rem !important;
     background: var(--color-bg-card);
     border: 1.5px solid var(--color-border-light);
 }

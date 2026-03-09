@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test krustydb</title>
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 700px;
+            margin: 30px auto;
+        }
+
+        #log {
+            background: #111;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            min-height: 200px;
+            font-size: 12px;
+        }
+
+        .ok {
+            color: #0f0;
+        }
+
+        .err {
+            color: #f44;
+        }
+
+        .warn {
+            color: #ff0;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>🧪 Test krustydb</h2>
+    <div id="log"></div>
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+        const log = document.getElementById('log');
+        function L(m, c = '') { const s = document.createElement('span'); s.className = c; s.textContent = new Date().toLocaleTimeString() + ' | ' + m + '\n'; log.appendChild(s); }
+
+        const config = {
+            apiKey: "AIzaSyAqIzWzq3NRr0L3Y6KKXr1aUdSrjR_GubU",
+            authDomain: "app-krusty-burger.firebaseapp.com",
+            projectId: "app-krusty-burger",
+            storageBucket: "app-krusty-burger.firebasestorage.app",
+            messagingSenderId: "731380363280",
+            appId: "1:731380363280:web:3558872d891d2a99be5a95"
+        };
+
+        L('=== TEST BASE DE DATOS "krustydb" ===', 'warn');
+
+        // Test 1: REST API
+        L('1. REST API — leyendo de krustydb...');
+        try {
+            const start = Date.now();
+            const res = await fetch(`https://firestore.googleapis.com/v1/projects/app-krusty-burger/databases/krustydb/documents?key=${config.apiKey}`);
+            const data = await res.json();
+            if (res.ok) {
+                L(`✅ REST API OK en ${Date.now() - start}ms — base de datos ACCESIBLE`, 'ok');
+            } else {
+                L(`❌ REST ${res.status} en ${Date.now() - start}ms — ${data.error?.message?.substring(0, 150)}`, 'err');
+            }
+        } catch (e) { L('❌ Red: ' + e.message, 'err'); }
+
+        // Test 2: REST API — escribir
+        L('2. REST API — escribiendo test en krustydb...');
+        try {
+            const start = Date.now();
+            const res = await fetch(`https://firestore.googleapis.com/v1/projects/app-krusty-burger/databases/krustydb/documents/test_orders?key=${config.apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields: { test: { stringValue: 'funciona!' }, time: { stringValue: new Date().toISOString() } } })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                const docId = data.name.split('/').pop();
+                L(`✅ ESCRITURA REST OK en ${Date.now() - start}ms — Doc ID: ${docId}`, 'ok');
+            } else {
+                L(`❌ REST ${res.status} en ${Date.now() - start}ms — ${data.error?.message?.substring(0, 150)}`, 'err');
+            }
+        } catch (e) { L('❌ Red: ' + e.message, 'err'); }
+
+        // Test 3: SDK
+        L('3. SDK — escribiendo via addDoc en krustydb...');
+        try {
+            const app = initializeApp(config, 'test-krustydb');
+            const db = getFirestore(app, 'krustydb');
+            const start = Date.now();
+            const t = setTimeout(() => L('⏱️ 5s esperando SDK...', 'warn'), 5000);
+            const docRef = await addDoc(collection(db, 'test_orders'), { test: true, time: new Date().toISOString() });
+            clearTimeout(t);
+            L(`✅ SDK ESCRITURA OK en ${Date.now() - start}ms — Doc ID: ${docRef.id}`, 'ok');
+        } catch (e) { L('❌ SDK: ' + e.message, 'err'); }
+
+        L('=== TESTS COMPLETADOS ===', 'warn');
+    </script>
+</body>
+
+</html>

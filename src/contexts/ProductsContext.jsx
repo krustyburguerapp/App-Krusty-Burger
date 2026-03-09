@@ -27,7 +27,7 @@ export function ProductsProvider({ children }) {
 
         let productsLoadedFromCache = false;
 
-        // 1. INTENTO DE CACHÉ (Carga Inmediata)
+        // 1. CACHE PRIMERO: carga instantanea desde IndexedDB
         const loadFromCache = async () => {
             try {
                 const cachedDocs = await getDocsFromCache(q);
@@ -36,26 +36,23 @@ export function ProductsProvider({ children }) {
                     setProducts(productsData);
                     setLoading(false);
                     productsLoadedFromCache = true;
-                    console.log('✅ Productos cargados desde caché');
                 }
             } catch (error) {
-                console.log('ℹ️ Caché de productos vacío o no disponible.');
+                // Cache vacio, no pasa nada
             }
         };
 
         loadFromCache();
 
-        // 2. TIMEOUT DE SEGURIDAD (Evita cargar infinto si no hay caché y red está lenta)
+        // 2. TIMEOUT DE SEGURIDAD
         const safetyTimeout = setTimeout(() => {
             if (loading && !productsLoadedFromCache) {
-                console.warn('⚠️ Timeout esperando a Firestore para productos, usando demostración.');
                 setProducts(DEMO_PRODUCTS);
                 setLoading(false);
-                setError('Demostrando menú por defecto por conexión lenta.');
             }
-        }, 2500);
+        }, 3000);
 
-        // 3. RECUPERACIÓN / ACTUALIZACIÓN EN SEGUNDO PLANO
+        // 3. LISTENER EN TIEMPO REAL: actualiza desde servidor en segundo plano
         const unsubscribe = onSnapshot(q, (snapshot) => {
             clearTimeout(safetyTimeout);
             const productsData = snapshot.docs.map((d) => ({
@@ -70,8 +67,7 @@ export function ProductsProvider({ children }) {
             clearTimeout(safetyTimeout);
             console.error('Error sincronizando productos de Firebase:', err.message);
             if (!productsLoadedFromCache && products.length === 0) {
-                setProducts(DEMO_PRODUCTS); // Fallback amigable
-                setError('Modo sin conexión. Demostrando menú por defecto.');
+                setProducts(DEMO_PRODUCTS);
             }
             setLoading(false);
         });
@@ -83,7 +79,7 @@ export function ProductsProvider({ children }) {
     }, []);
 
     const addProduct = async (productData, imageFile) => {
-        if (isDemoMode) return { success: false, error: 'Acción no permitida en Modo Demo' };
+        if (isDemoMode) return { success: false, error: 'Accion no permitida en Modo Demo' };
         try {
             let imageURL = '';
             const docRef = await addDoc(collection(db, 'products'), {
@@ -106,7 +102,7 @@ export function ProductsProvider({ children }) {
     };
 
     const updateProduct = async (productId, productData, imageFile) => {
-        if (isDemoMode) return { success: false, error: 'Acción no permitida en Modo Demo' };
+        if (isDemoMode) return { success: false, error: 'Accion no permitida en Modo Demo' };
         try {
             const updateData = { ...productData, updatedAt: serverTimestamp() };
             if (imageFile) {
@@ -123,7 +119,7 @@ export function ProductsProvider({ children }) {
     };
 
     const deleteProduct = async (productId) => {
-        if (isDemoMode) return { success: false, error: 'Acción no permitida en Modo Demo' };
+        if (isDemoMode) return { success: false, error: 'Accion no permitida en Modo Demo' };
         try {
             try {
                 const storageRef = ref(storage, `products/${productId}/image.webp`);
@@ -139,7 +135,7 @@ export function ProductsProvider({ children }) {
     };
 
     const toggleAvailability = async (productId, available) => {
-        if (isDemoMode) return { success: false, error: 'Acción no permitida en Modo Demo' };
+        if (isDemoMode) return { success: false, error: 'Accion no permitida en Modo Demo' };
         try {
             await updateDoc(doc(db, 'products', productId), {
                 available: !available,

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { db, isDemoMode } from '../config/firebase';
 import {
-    collection, onSnapshot, doc, getDocsFromCache, query, where,
+    collection, onSnapshot, doc,
     addDoc, updateDoc, serverTimestamp
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
@@ -43,63 +43,24 @@ export function OrdersProvider({ children }) {
 
         const ordersRef = collection(db, 'orders');
 
-        // Optimización: Si no es admin, filtramos directo en la query si es posible (aunque para caché general leer la colección basta)
-
-        let ordersLoadedFromCache = false;
-
-        // 1. INTENTO DE CACHÉ
-        const loadFromCache = async () => {
-            try {
-                // Intentamos leer el caché general de órdenes
-                const cachedDocs = await getDocsFromCache(ordersRef);
-                if (!cachedDocs.empty) {
-                    let ordersData = cachedDocs.docs.map(d => ({ id: d.id, ...d.data() }));
-
-                    if (!isAdmin) {
-                        ordersData = ordersData.filter(o => o.userId === userId);
-                    }
-
-                    ordersData.sort((a, b) => {
-                        const dateA = a.createdAt?.seconds || 0;
-                        const dateB = b.createdAt?.seconds || 0;
-                        return dateB - dateA;
-                    });
-
-                    setOrders(ordersData);
-                    if (isAdmin) setNewOrdersCount(ordersData.filter((o) => o.isNew).length);
-
-                    setLoading(false);
-                    ordersLoadedFromCache = true;
-                }
-            } catch (e) {
-                console.log('ℹ️ Caché de órdenes vacío.');
-            }
-        };
-
-        loadFromCache();
-
-        // 2. TIMEOUT DE SEGURIDAD (No bloquear la app si Orders falla)
+        // TIMEOUT DE SEGURIDAD: si Firestore no responde en 5s, quitamos spinner
         const safetyTimeout = setTimeout(() => {
-            if (loading && !ordersLoadedFromCache) {
-                console.warn('⚠️ Timeout en OrdersContext, quitando loading...');
-                setLoading(false);
-            }
-        }, 2000);
+            setLoading(false);
+        }, 5000);
 
-        // 3. BACKGROUND FETCH
+        // 3. LISTENER EN TIEMPO REAL: actualiza desde el servidor en segundo plano
         const unsubscribe = onSnapshot(ordersRef, (snapshot) => {
             clearTimeout(safetyTimeout);
+
             let ordersData = snapshot.docs.map((d) => ({
                 id: d.id,
                 ...d.data()
             }));
 
-            // 1. Filtrado Local
             if (!isAdmin) {
                 ordersData = ordersData.filter(o => o.userId === userId);
             }
 
-            // 2. Ordenado Local (Más nuevo a viejo)
             ordersData.sort((a, b) => {
                 const dateA = a.createdAt?.seconds || 0;
                 const dateB = b.createdAt?.seconds || 0;
@@ -115,7 +76,6 @@ export function OrdersProvider({ children }) {
         }, (err) => {
             clearTimeout(safetyTimeout);
             console.error('Error cargando los pedidos:', err.message);
-            setError('Error al conectar con la base de datos de pedidos.');
             setLoading(false);
         });
 
@@ -131,7 +91,7 @@ export function OrdersProvider({ children }) {
                 id: 'demo-ord-' + Date.now(),
                 ...orderData,
                 status: 'pending',
-                statusHistory: [{ status: 'pending', timestamp: new Date(), note: 'Pedido creado' }],
+                statusHistory: [{ status: 'pending', timestamp: new Date().toISOString(), note: 'Pedido creado' }],
                 isNew: true,
                 whatsappConfirmSent: false,
                 actualTime: 0,
@@ -145,26 +105,32 @@ export function OrdersProvider({ children }) {
         }
 
         try {
-            const orderDataToSave = {
-                ...orderData,
+            const cleanOrderData = JSON.parse(JSON.stringify(orderData));
+            const now = new Date().toISOString();
+
+            const orderToSave = {
+                ...cleanOrderData,
                 status: 'pending',
                 statusHistory: [{
                     status: 'pending',
-                    timestamp: new Date(),
+                    timestamp: now,
                     note: 'Pedido creado'
                 }],
                 isNew: true,
                 whatsappConfirmSent: false,
                 actualTime: 0,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp()
+                createdAt: now,
+                updatedAt: now
             };
 
-            const docRef = await addDoc(collection(db, 'orders'), orderDataToSave);
+            // SIN caché persistente: addDoc va DIRECTO al servidor.
+            // Cuando esta promesa resuelve, el pedido YA ESTÁ en Firestore.
+            const docRef = await addDoc(collection(db, 'orders'), orderToSave);
+            console.log('✅ Pedido creado en servidor:', docRef.id);
             return { success: true, orderId: docRef.id };
         } catch (error) {
-            console.error('Error al crear pedido en db:', error);
-            return { success: false, error: 'Hubo un error al crear tu pedido. Revisa tu conexión.' };
+            console.error('Error al crear pedido:', error);
+            return { success: false, error: `Error: ${error.message}` };
         }
     };
 
@@ -178,7 +144,7 @@ export function OrdersProvider({ children }) {
                         ...o,
                         status: newStatus,
                         isNew: false,
-                        statusHistory: [...statusHist, { status: newStatus, timestamp: new Date(), note: note || getStatusLabel(newStatus) }],
+                        statusHistory: [...statusHist, { status: newStatus, timestamp: new Date().toISOString(), note: note || getStatusLabel(newStatus) }],
                         updatedAt: new Date().toISOString()
                     };
                     if (newStatus === 'delivered' && o.createdAt) {
@@ -201,10 +167,10 @@ export function OrdersProvider({ children }) {
                 statusHistory: orders.find((o) => o.id === orderId)?.statusHistory
                     ? [...orders.find((o) => o.id === orderId).statusHistory, {
                         status: newStatus,
-                        timestamp: new Date(),
+                        timestamp: new Date().toISOString(),
                         note: note || getStatusLabel(newStatus)
                     }]
-                    : [{ status: newStatus, timestamp: new Date(), note: note || getStatusLabel(newStatus) }],
+                    : [{ status: newStatus, timestamp: new Date().toISOString(), note: note || getStatusLabel(newStatus) }],
                 updatedAt: serverTimestamp()
             };
             if (newStatus === 'delivered') {
@@ -254,7 +220,7 @@ export function getStatusLabel(status) {
     const labels = {
         pending: 'Pedido recibido',
         accepted: 'Aceptado',
-        preparing: 'En preparación',
+        preparing: 'En preparacion',
         ready: 'Listo',
         onTheWay: 'En camino',
         delivered: 'Entregado',

@@ -10,6 +10,10 @@ function getColombiaTime() {
 }
 
 export function isStoreOpen(deliveryType = 'pickup') {
+    // TEMPORAL: bypass de horario para pruebas — QUITAR cuando termine la corrección
+    const BYPASS_HOURS = true;
+    if (BYPASS_HOURS) return true;
+
     const now = getColombiaTime();
     const hours = deliveryType === 'delivery' ? BUSINESS_HOURS.delivery : BUSINESS_HOURS.pickup;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();

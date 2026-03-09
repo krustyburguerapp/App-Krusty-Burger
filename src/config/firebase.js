@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
@@ -17,13 +17,17 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Utilizamos la configuración estándar recomendada por Firebase
-// con caché local para que la app cargue al instante y funcione offline
+// Conectamos EXPLÍCITAMENTE a la nueva base de datos "krustydb"
+// ya que la (default) está en estado corrupto a nivel de GCP.
 export const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-});
+    experimentalForceLongPolling: true
+}, "krustydb");
 
 export const storage = getStorage(app);
 
 export const isDemoMode = false;
 export const ADMIN_EMAIL = 'krustyburguerco@gmail.com';
+
+
+
+

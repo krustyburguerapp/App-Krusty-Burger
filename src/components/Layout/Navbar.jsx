@@ -21,6 +21,11 @@ export default function Navbar() {
                     <span className="navbar-title">Krusty Burger</span>
                 </div>
                 <div className="navbar-actions">
+                    {!isAdminRoute && user && (
+                        <button className="btn btn-icon btn-ghost navbar-orders-btn" onClick={() => navigate('/orders')} aria-label="Mis Pedidos" title="Mis Pedidos">
+                            <span className="material-icons-round">receipt_long</span>
+                        </button>
+                    )}
                     {!isAdminRoute && (
                         <button className="btn btn-icon btn-ghost navbar-cart-btn" onClick={() => setIsOpen(true)} aria-label="Carrito">
                             <span className="material-icons-round">shopping_cart</span>
@@ -29,7 +34,7 @@ export default function Navbar() {
                     )}
                     <button
                         className="btn btn-icon btn-ghost"
-                        onClick={() => navigate(isAdmin && isAdminRoute ? '/admin' : '/profile')}
+                        onClick={() => navigate(user ? (isAdmin && isAdminRoute ? '/admin' : '/profile') : '/')}
                         aria-label="Perfil"
                     >
                         {userData?.photoURL && !imgError ? (
