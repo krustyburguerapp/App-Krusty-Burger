@@ -1,10 +1,12 @@
 import { useCart } from '../../contexts/CartContext';
+import { useLocation } from 'react-router-dom';
 import './FloatingCartBtn.css';
 
 export default function FloatingCartBtn() {
     const { totalItems, setIsOpen } = useCart();
+    const location = useLocation();
 
-    if (totalItems === 0) return null;
+    if (totalItems === 0 || location.pathname === '/checkout') return null;
 
     return (
         <button
