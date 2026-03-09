@@ -14,21 +14,26 @@ export default function AdminProducts() {
     const [imageFile, setImageFile] = useState(null);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
-        name: '', description: '', price: '', category: 'hamburguesas', available: true, featured: false, order: 0
+        name: '', description: '', price: '', category: CATEGORIES[0].id, available: true, featured: false, order: 0
     });
 
     const openNew = () => {
         setEditingProduct(null);
-        setForm({ name: '', description: '', price: '', category: 'hamburguesas', available: true, featured: false, order: products.length + 1 });
+        setForm({ name: '', description: '', price: '', category: CATEGORIES[0].id, available: true, featured: false, order: products.length + 1 });
         setImageFile(null);
         setModalOpen(true);
     };
 
     const openEdit = (product) => {
         setEditingProduct(product);
+        // Verificar si la categoria existe, si no, usar la primera por defecto
+        const validCategory = CATEGORIES.some(c => c.id === product.category)
+            ? product.category
+            : CATEGORIES[0].id;
+
         setForm({
             name: product.name, description: product.description, price: product.price.toString(),
-            category: product.category, available: product.available, featured: product.featured, order: product.order || 0
+            category: validCategory, available: product.available, featured: product.featured, order: product.order || 0
         });
         setImageFile(null);
         setModalOpen(true);
