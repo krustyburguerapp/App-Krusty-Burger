@@ -15,13 +15,20 @@ export default function CrossSellingModal() {
 
     // Filtramos productos por las nuevas categorías
     const bebidasList = useMemo(() => products.filter(p => p.category === 'bebidas' && p.available), [products]);
+    const bebidasFamiliaresList = useMemo(() => products.filter(p => p.category === 'bebidas_familiares' && p.available), [products]);
     const adicionalesList = useMemo(() => products.filter(p => p.category === 'adicionales' && p.available), [products]);
 
     const hasIndividualItems = useMemo(() => {
-        // Asumimos que podemos acceder a la categoría de los items del carrito buscando en products
         return items.some(cartItem => {
             const productInfo = products.find(p => p.id === cartItem.productId);
             return productInfo && productInfo.category === 'individual';
+        });
+    }, [items, products]);
+
+    const hasFamiliarItems = useMemo(() => {
+        return items.some(cartItem => {
+            const productInfo = products.find(p => p.id === cartItem.productId);
+            return productInfo && productInfo.category === 'familiar';
         });
     }, [items, products]);
 
@@ -36,13 +43,14 @@ export default function CrossSellingModal() {
         }, 0);
     }, [items, products]);
 
-    // 'combos' | 'bebidas' | 'adicionales'
+    // 'combos' | 'bebidas' | 'bebidas_familiares' | 'adicionales'
     const [step, setStep] = useState('combos');
 
     // Estado para selecciones temporales antes de pasarlas al carrito
     const [tempCombosQty, setTempCombosQty] = useState(0);
     const [selectedComboDrinks, setSelectedComboDrinks] = useState([]); // Array de objetos { product, qty }
     const [tempBebidas, setTempBebidas] = useState([]); // Array de objetos { product, qty }
+    const [tempBebidasFamiliares, setTempBebidasFamiliares] = useState([]); // Array de objetos { product, qty }
     const [tempAdicionales, setTempAdicionales] = useState([]);
 
     useEffect(() => {
@@ -50,14 +58,17 @@ export default function CrossSellingModal() {
             if (hasIndividualItems) {
                 setStep('combos');
                 setTempCombosQty(0);
+            } else if (hasFamiliarItems) {
+                setStep('bebidas_familiares');
             } else {
                 setStep('adicionales');
             }
             setSelectedComboDrinks([]);
             setTempBebidas([]);
+            setTempBebidasFamiliares([]);
             setTempAdicionales([]);
         }
-    }, [isCrossSellingOpen, hasIndividualItems]);
+    }, [isCrossSellingOpen, hasIndividualItems, hasFamiliarItems]);
 
     const totalComboDrinks = selectedComboDrinks.reduce((acc, curr) => acc + curr.qty, 0);
 
@@ -113,11 +124,10 @@ export default function CrossSellingModal() {
     };
 
     const proceedToNext = () => {
-        if (step === 'combos') {
-            setStep('adicionales'); // Si ya ofreció combos, saltamos a adicionales (porque las bebidas ya se ofrecieron en combo)
-            // Edit: El usuario dijo "Si no se elige combo que salga a un apartado para agregar gaseosas...". 
-            // Si sí eligió combo, pasa a adicionales.
-        } else if (step === 'bebidas') {
+        if (step === 'bebidas') {
+            if (hasFamiliarItems) setStep('bebidas_familiares');
+            else setStep('adicionales');
+        } else if (step === 'bebidas_familiares') {
             setStep('adicionales');
         } else if (step === 'adicionales') {
             finishAndGoToCheckout();
@@ -126,7 +136,7 @@ export default function CrossSellingModal() {
 
     const handleComboAction = () => {
         if (tempCombosQty === 0) {
-            setStep('bebidas'); // Si no lleva combo, pasamos a ofrecer bebidas
+            setStep('bebidas'); // Si no lleva combo, pasamos a ofrecer bebidas individuales
             return;
         }
 
@@ -149,13 +159,20 @@ export default function CrossSellingModal() {
             }
         });
 
-        // Como aceptó combo, pasa directo a adicionales
-        setStep('adicionales');
+        if (hasFamiliarItems) setStep('bebidas_familiares');
+        else setStep('adicionales');
     };
 
     const finishAndGoToCheckout = () => {
         // Agregar las bebidas sueltas al carrito
         tempBebidas.forEach(item => {
+            for (let i = 0; i < item.qty; i++) {
+                addItem(item.product);
+            }
+        });
+
+        // Agregar las bebidas familiares al carrito
+        tempBebidasFamiliares.forEach(item => {
             for (let i = 0; i < item.qty; i++) {
                 addItem(item.product);
             }
@@ -268,11 +285,11 @@ export default function CrossSellingModal() {
                 {step === 'bebidas' && (
                     <div className="cs-step fade-in">
                         <div className="cs-icon-header">🥤</div>
-                        <h3 className="cs-title">¿Alguna bebida para acompañar?</h3>
-                        <p className="cs-desc">Refresca tu pedido con nuestras opciones.</p>
+                        <h3 className="cs-title">¿Bebidas adicionales?</h3>
+                        <p className="cs-desc">Refresca tu pedido individual con nuestras gaseosas y jugos.</p>
 
                         <div className="cs-items-list">
-                            {bebidasList.length === 0 && <p className="cs-empty">No hay bebidas disponibles.</p>}
+                            {bebidasList.length === 0 && <p className="cs-empty">No hay bebidas individuales disponibles.</p>}
                             {bebidasList.map(bebida => {
                                 const selected = tempBebidas.find(b => b.product.id === bebida.id);
                                 const qty = selected ? selected.qty : 0;
@@ -302,6 +319,60 @@ export default function CrossSellingModal() {
                                                 </>
                                             ) : (
                                                 <button className="btn btn-outline btn-sm" onClick={() => toggleTempItem(bebida, tempBebidas, setTempBebidas, true)}>
+                                                    Agregar
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="cs-actions single-action">
+                            <button className="btn btn-primary btn-lg btn-full" onClick={proceedToNext}>
+                                Continuar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- PASO: BEBIDAS FAMILIARES --- */}
+                {step === 'bebidas_familiares' && (
+                    <div className="cs-step fade-in">
+                        <div className="cs-icon-header">🍾</div>
+                        <h3 className="cs-title">¡Para compartir en familia!</h3>
+                        <p className="cs-desc">Acompaña tus combos familiares con la bebida ideal.</p>
+
+                        <div className="cs-items-list">
+                            {bebidasFamiliaresList.length === 0 && <p className="cs-empty">No hay bebidas familiares disponibles.</p>}
+                            {bebidasFamiliaresList.map(bebida => {
+                                const selected = tempBebidasFamiliares.find(b => b.product.id === bebida.id);
+                                const qty = selected ? selected.qty : 0;
+                                return (
+                                    <div key={bebida.id} className="cs-item-row">
+                                        {bebida.imageURL ? (
+                                            <img src={bebida.imageURL} alt={bebida.name} className="cs-item-image" />
+                                        ) : (
+                                            <div className="cs-item-image-placeholder">
+                                                <span className="material-icons-round">liquor</span>
+                                            </div>
+                                        )}
+                                        <div className="cs-item-info">
+                                            <span className="cs-item-name">{bebida.name}</span>
+                                            <span className="cs-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
+                                        </div>
+                                        <div className="cs-item-qty">
+                                            {qty > 0 ? (
+                                                <>
+                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, false)}>
+                                                        <span className="material-icons-round">remove</span>
+                                                    </button>
+                                                    <span>{qty}</span>
+                                                    <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, true)}>
+                                                        <span className="material-icons-round">add</span>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button className="btn btn-outline btn-sm" onClick={() => toggleTempItem(bebida, tempBebidasFamiliares, setTempBebidasFamiliares, true)}>
                                                     Agregar
                                                 </button>
                                             )}

@@ -11,7 +11,7 @@ export default function CategoryFilter({ activeCategory, onCategoryChange }) {
                 <span className="material-icons-round" style={{ fontSize: 18 }}>apps</span>
                 Todos
             </button>
-            {CATEGORIES.filter(c => c.id !== 'bebidas' && c.id !== 'adicionales').map((cat) => (
+            {CATEGORIES.filter(c => !['bebidas', 'bebidas_familiares', 'adicionales'].includes(c.id)).map((cat) => (
                 <button
                     key={cat.id}
                     className={`chip ${activeCategory === cat.id ? 'active' : ''}`}
