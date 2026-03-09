@@ -149,17 +149,36 @@
 .cs-item-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     padding: var(--spacing-sm);
     background: var(--color-bg);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-sm);
+    gap: var(--spacing-sm);
+}
+
+.cs-item-image {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+}
+
+.cs-item-image-placeholder {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-tertiary);
 }
 
 .cs-item-info {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    flex: 1;
 }
 
 .cs-item-name {

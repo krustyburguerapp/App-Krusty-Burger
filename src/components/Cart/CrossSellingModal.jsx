@@ -41,7 +41,7 @@ export default function CrossSellingModal() {
 
     // Estado para selecciones temporales antes de pasarlas al carrito
     const [tempCombosQty, setTempCombosQty] = useState(0);
-    const [selectedDrinkForCombo, setSelectedDrinkForCombo] = useState(null);
+    const [selectedComboDrinks, setSelectedComboDrinks] = useState([]); // Array de objetos { product, qty }
     const [tempBebidas, setTempBebidas] = useState([]); // Array de objetos { product, qty }
     const [tempAdicionales, setTempAdicionales] = useState([]);
 
@@ -53,11 +53,60 @@ export default function CrossSellingModal() {
             } else {
                 setStep('adicionales');
             }
-            setSelectedDrinkForCombo(null);
+            setSelectedComboDrinks([]);
             setTempBebidas([]);
             setTempAdicionales([]);
         }
     }, [isCrossSellingOpen, hasIndividualItems]);
+
+    const totalComboDrinks = selectedComboDrinks.reduce((acc, curr) => acc + curr.qty, 0);
+
+    const handleReduceCombosQty = () => {
+        const newQty = Math.max(0, tempCombosQty - 1);
+        setTempCombosQty(newQty);
+
+        if (totalComboDrinks > newQty) {
+            let toRemove = totalComboDrinks - newQty;
+            const newSelected = [...selectedComboDrinks];
+            while (toRemove > 0 && newSelected.length > 0) {
+                let last = newSelected[newSelected.length - 1];
+                if (last.qty > toRemove) {
+                    last.qty -= toRemove;
+                    toRemove = 0;
+                } else {
+                    toRemove -= last.qty;
+                    newSelected.pop();
+                }
+            }
+            setSelectedComboDrinks(newSelected);
+        }
+    };
+
+    const toggleComboDrink = (bebida, add) => {
+        const existing = selectedComboDrinks.find(item => item.product.id === bebida.id);
+
+        if (add) {
+            if (tempCombosQty === 1) {
+                setSelectedComboDrinks([{ product: bebida, qty: 1 }]);
+                return;
+            }
+            if (totalComboDrinks >= tempCombosQty) return;
+
+            if (existing) {
+                setSelectedComboDrinks(selectedComboDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty + 1 } : i));
+            } else {
+                setSelectedComboDrinks([...selectedComboDrinks, { product: bebida, qty: 1 }]);
+            }
+        } else {
+            if (existing) {
+                if (existing.qty > 1) {
+                    setSelectedComboDrinks(selectedComboDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty - 1 } : i));
+                } else {
+                    setSelectedComboDrinks(selectedComboDrinks.filter(i => i.product.id !== bebida.id));
+                }
+            }
+        }
+    };
 
     const handleClose = () => {
         setIsCrossSellingOpen(false);
@@ -81,22 +130,25 @@ export default function CrossSellingModal() {
             return;
         }
 
-        if (!selectedDrinkForCombo) {
-            alert("Por favor selecciona una bebida para tus combos.");
+        if (totalComboDrinks !== tempCombosQty) {
+            alert(`Por favor selecciona las ${tempCombosQty} bebidas para tus combos. Te faltan ${tempCombosQty - totalComboDrinks}.`);
             return;
         }
-        // Agregamos el "combo" al carrito usando un id temporal y el nombre de la bebida
-        const comboItem = {
-            id: `combo-${Date.now()}`,
-            name: `Combo Upgrade (Papas + ${selectedDrinkForCombo.name})`,
-            price: COMBO_UPGRADE_PRICE,
-            imageURL: selectedDrinkForCombo.imageURL || '',
-            category: 'combo_system'
-        };
-        // Lo agregamos tantas veces como se indicó
-        for (let i = 0; i < tempCombosQty; i++) {
-            addItem(comboItem);
-        }
+
+        // Agregamos los combos al carrito
+        selectedComboDrinks.forEach(drinkItem => {
+            for (let i = 0; i < drinkItem.qty; i++) {
+                const comboItem = {
+                    id: `combo-${Date.now()}-${Math.random()}`,
+                    name: `Combo Upgrade (Papas + ${drinkItem.product.name})`,
+                    price: COMBO_UPGRADE_PRICE,
+                    imageURL: drinkItem.product.imageURL || '',
+                    category: 'combo_system'
+                };
+                addItem(comboItem);
+            }
+        });
+
         // Como aceptó combo, pasa directo a adicionales
         setStep('adicionales');
     };
@@ -154,7 +206,7 @@ export default function CrossSellingModal() {
                         <div className="cs-combo-selection">
                             <label className="cs-label">¿Cuántos combos deseas llevar?</label>
                             <div className="cs-qty-controls">
-                                <button className="btn btn-icon btn-ghost" onClick={() => setTempCombosQty(Math.max(0, tempCombosQty - 1))}>
+                                <button className="btn btn-icon btn-ghost" onClick={handleReduceCombosQty}>
                                     <span className="material-icons-round">remove</span>
                                 </button>
                                 <span className="cs-qty">{tempCombosQty}</span>
@@ -166,22 +218,40 @@ export default function CrossSellingModal() {
 
                         {tempCombosQty > 0 && bebidasList.length > 0 && (
                             <div className="cs-drink-selection fade-in">
-                                <label className="cs-label">Elige tu bebida para los combos:</label>
+                                <label className="cs-label">
+                                    Elige tu bebida para los combos:
+                                    {totalComboDrinks < tempCombosQty && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {tempCombosQty - totalComboDrinks} por elegir</span>}
+                                </label>
                                 <div className="cs-drink-grid">
-                                    {bebidasList.map(bebida => (
-                                        <div
-                                            key={bebida.id}
-                                            className={`cs-drink-option ${selectedDrinkForCombo?.id === bebida.id ? 'selected' : ''}`}
-                                            onClick={() => setSelectedDrinkForCombo(bebida)}
-                                        >
-                                            {bebida.imageURL ? (
-                                                <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" />
-                                            ) : (
-                                                <span className="material-icons-round cs-drink-icon">local_drink</span>
-                                            )}
-                                            <span className="cs-drink-name">{bebida.name}</span>
-                                        </div>
-                                    ))}
+                                    {bebidasList.map(bebida => {
+                                        const selected = selectedComboDrinks.find(d => d.product.id === bebida.id);
+                                        const qty = selected ? selected.qty : 0;
+                                        return (
+                                            <div
+                                                key={bebida.id}
+                                                className={`cs-drink-option ${qty > 0 ? 'selected' : ''}`}
+                                                onClick={() => toggleComboDrink(bebida, true)}
+                                            >
+                                                {bebida.imageURL ? (
+                                                    <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" />
+                                                ) : (
+                                                    <span className="material-icons-round cs-drink-icon">local_drink</span>
+                                                )}
+                                                <span className="cs-drink-name">{bebida.name}</span>
+                                                {qty > 0 && tempCombosQty > 1 && (
+                                                    <div className="cs-drink-qty-mini fade-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', borderRadius: '20px', padding: '2px 6px', marginTop: '6px' }}>
+                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrink(bebida, false)} style={{ width: 24, height: 24, minHeight: 0 }}>
+                                                            <span className="material-icons-round" style={{ fontSize: 16 }}>remove</span>
+                                                        </button>
+                                                        <span style={{ fontWeight: 'bold', fontSize: 14 }}>{qty}</span>
+                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrink(bebida, true)} disabled={totalComboDrinks >= tempCombosQty} style={{ width: 24, height: 24, minHeight: 0 }}>
+                                                            <span className="material-icons-round" style={{ fontSize: 16 }}>add</span>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -208,6 +278,13 @@ export default function CrossSellingModal() {
                                 const qty = selected ? selected.qty : 0;
                                 return (
                                     <div key={bebida.id} className="cs-item-row">
+                                        {bebida.imageURL ? (
+                                            <img src={bebida.imageURL} alt={bebida.name} className="cs-item-image" />
+                                        ) : (
+                                            <div className="cs-item-image-placeholder">
+                                                <span className="material-icons-round">local_drink</span>
+                                            </div>
+                                        )}
                                         <div className="cs-item-info">
                                             <span className="cs-item-name">{bebida.name}</span>
                                             <span className="cs-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
@@ -255,6 +332,13 @@ export default function CrossSellingModal() {
                                 const qty = selected ? selected.qty : 0;
                                 return (
                                     <div key={adicional.id} className="cs-item-row">
+                                        {adicional.imageURL ? (
+                                            <img src={adicional.imageURL} alt={adicional.name} className="cs-item-image" />
+                                        ) : (
+                                            <div className="cs-item-image-placeholder">
+                                                <span className="material-icons-round">add_circle</span>
+                                            </div>
+                                        )}
                                         <div className="cs-item-info">
                                             <span className="cs-item-name">{adicional.name}</span>
                                             <span className="cs-item-price">+${adicional.price.toLocaleString('es-CO')}</span>
