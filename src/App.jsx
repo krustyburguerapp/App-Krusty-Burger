@@ -18,6 +18,7 @@ const Profile = lazy(() => import('./pages/Profile/Profile'));
 const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const AdminOrders = lazy(() => import('./pages/Admin/AdminOrders'));
 const AdminProducts = lazy(() => import('./pages/Admin/AdminProducts'));
+const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 function LoadingScreen() {
     return (
@@ -63,7 +64,7 @@ function AppRoutes() {
             <Routes>
                 <Route path="/" element={<Suspense fallback={<LoadingScreen />}><Welcome /></Suspense>} />
                 <Route path="/menu" element={<AppLayout><Menu /></AppLayout>} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
             </Routes>
         );
     }
@@ -75,7 +76,7 @@ function AppRoutes() {
             <Routes>
                 <Route path="/" element={<LoadingScreen />} />
                 <Route path="/menu" element={<AppLayout><Menu /></AppLayout>} />
-                <Route path="*" element={<LoadingScreen />} />
+                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
             </Routes>
         );
     }
@@ -91,7 +92,7 @@ function AppRoutes() {
             <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AppLayout><AdminOrders /></AppLayout></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AppLayout><AdminProducts /></AppLayout></AdminRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
         </Routes>
     );
 }
