@@ -11,6 +11,7 @@ import Spinner from './components/UI/Spinner';
 
 import Welcome from './pages/Welcome/Welcome';
 import Menu from './pages/Menu/Menu';
+import InstallPrompt from './components/UI/InstallPrompt';
 const Checkout = lazy(() => import('./pages/Checkout/Checkout'));
 const OrderConfirmation = lazy(() => import('./pages/OrderConfirmation/OrderConfirmation'));
 const OrderTracking = lazy(() => import('./pages/OrderTracking/OrderTracking'));
@@ -42,7 +43,6 @@ function AdminRoute({ children }) {
     if (!user || !isAdmin) return <Navigate to="/menu" replace />;
     return children;
 }
-
 function AppLayout({ children }) {
     return (
         <>
@@ -50,6 +50,7 @@ function AppLayout({ children }) {
             <Suspense fallback={<LoadingScreen />}>{children}</Suspense>
             <CartDrawer />
             <BottomNav />
+            <InstallPrompt />
         </>
     );
 }
