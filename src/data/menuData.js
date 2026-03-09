@@ -1,8 +1,9 @@
 export const CATEGORIES = [
     { id: 'individual', label: 'Individual', icon: 'person' },
     { id: 'familiar', label: 'Familiar', icon: 'groups' },
-    { id: 'bebidas', label: 'Bebidas Individuales', icon: 'local_drink' },
-    { id: 'bebidas_familiares', label: 'Bebidas Familiares', icon: 'liquor' },
+    { id: 'bebidas_pequenas', label: 'Bebidas Pequeñas', icon: 'local_drink' },
+    { id: 'bebidas_medianas', label: 'Bebidas Medianas', icon: 'wine_bar' },
+    { id: 'bebidas_grandes', label: 'Bebidas Grandes', icon: 'liquor' },
     { id: 'adicionales', label: 'Adicionales', icon: 'add_circle' }
 ];
 

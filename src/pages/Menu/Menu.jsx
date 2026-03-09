@@ -17,7 +17,7 @@ export default function Menu() {
         return products
             .filter((p) => {
                 // Ocultar categorías de ventas cruzadas (cross-selling) del panel principal
-                if (['bebidas', 'bebidas_familiares', 'adicionales'].includes(p.category)) {
+                if (['bebidas_pequenas', 'bebidas_medianas', 'bebidas_grandes', 'adicionales'].includes(p.category)) {
                     return false;
                 }
                 const matchCategory = activeCategory === 'all' || p.category === activeCategory;

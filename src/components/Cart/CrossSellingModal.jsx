@@ -6,10 +6,10 @@ import Modal from '../UI/Modal';
 import './CrossSellingModal.css';
 
 const COMBO_OPTIONS = [
-    { id: 'combo_pequeno', name: 'Combo Pequeño', description: 'Porción de Papas y Bebida Individual', price: 4000, type: 'individual' },
-    { id: 'combo_mediano', name: 'Combo Mediano', description: 'Porción de papas grande y Bebida Individual', price: 5000, type: 'individual' },
-    { id: 'combo_fam_pequeno', name: 'Combo Familiar Pequeño', description: 'Porción de Papas y Bebida Familiar', price: 6000, type: 'familiar' },
-    { id: 'combo_grande', name: 'Combo Grande', description: 'Porción de papas grande y Bebida Familiar', price: 7000, type: 'familiar' },
+    { id: 'combo_pequeno', name: 'Combo Pequeño', description: 'Porción de Papas + Gaseosa Pequeña', price: 4000, drinkType: 'pequena' },
+    { id: 'combo_mediano', name: 'Combo Mediano', description: 'Porción de Papas Grande + Gaseosa Pequeña', price: 5000, drinkType: 'pequena' },
+    { id: 'combo_grande', name: 'Combo Grande', description: 'Porción de Papas + Gaseosa Mediana', price: 6000, drinkType: 'mediana' },
+    { id: 'combo_super', name: 'Combo Super', description: 'Porción de Papas Grande + Gaseosa Mediana', price: 7000, drinkType: 'mediana' },
 ];
 
 export default function CrossSellingModal() {
@@ -17,9 +17,10 @@ export default function CrossSellingModal() {
     const { products } = useProducts();
     const navigate = useNavigate();
 
-    // Filtramos productos por las nuevas categorías
-    const bebidasList = useMemo(() => products.filter(p => p.category === 'bebidas' && p.available), [products]);
-    const bebidasFamiliaresList = useMemo(() => products.filter(p => p.category === 'bebidas_familiares' && p.available), [products]);
+    // Filtramos productos por las nuevas categorías de bebidas
+    const bebidasPequenasList = useMemo(() => products.filter(p => p.category === 'bebidas_pequenas' && p.available), [products]);
+    const bebidasMedianasList = useMemo(() => products.filter(p => p.category === 'bebidas_medianas' && p.available), [products]);
+    const bebidasGrandesList = useMemo(() => products.filter(p => p.category === 'bebidas_grandes' && p.available), [products]);
     const adicionalesList = useMemo(() => products.filter(p => p.category === 'adicionales' && p.available), [products]);
 
     const hasIndividualItems = useMemo(() => {
@@ -62,8 +63,8 @@ export default function CrossSellingModal() {
 
     // Estado para selecciones temporales antes de pasarlas al carrito
     const [selectedCombos, setSelectedCombos] = useState([]); // Array de objetos { combo, qty }
-    const [selectedComboDrinksInd, setSelectedComboDrinksInd] = useState([]);
-    const [selectedComboDrinksFam, setSelectedComboDrinksFam] = useState([]);
+    const [selectedComboDrinksPeq, setSelectedComboDrinksPeq] = useState([]);
+    const [selectedComboDrinksMed, setSelectedComboDrinksMed] = useState([]);
     const [tempBebidas, setTempBebidas] = useState([]); // Array de objetos { product, qty }
     const [selectedFamiliarDrinks, setSelectedFamiliarDrinks] = useState([]); // Array de objetos { product, qty }
     const [tempAdicionales, setTempAdicionales] = useState([]);
@@ -78,8 +79,8 @@ export default function CrossSellingModal() {
                 setStep('adicionales');
             }
             setSelectedCombos([]);
-            setSelectedComboDrinksInd([]);
-            setSelectedComboDrinksFam([]);
+            setSelectedComboDrinksPeq([]);
+            setSelectedComboDrinksMed([]);
             setTempBebidas([]);
             setSelectedFamiliarDrinks([]);
             setTempAdicionales([]);
@@ -87,16 +88,16 @@ export default function CrossSellingModal() {
     }, [isCrossSellingOpen, hasIndividualItems, hasFamiliarItems]);
 
     const totalCombosSelected = selectedCombos.reduce((acc, curr) => acc + curr.qty, 0);
-    const totalIndCombos = selectedCombos.filter(c => c.combo.type === 'individual').reduce((acc, curr) => acc + curr.qty, 0);
-    const totalFamCombos = selectedCombos.filter(c => c.combo.type === 'familiar').reduce((acc, curr) => acc + curr.qty, 0);
+    const totalPeqCombos = selectedCombos.filter(c => c.combo.drinkType === 'pequena').reduce((acc, curr) => acc + curr.qty, 0);
+    const totalMedCombos = selectedCombos.filter(c => c.combo.drinkType === 'mediana').reduce((acc, curr) => acc + curr.qty, 0);
 
-    const totalSelectedIndDrinks = selectedComboDrinksInd.reduce((acc, curr) => acc + curr.qty, 0);
-    const totalSelectedFamDrinks = selectedComboDrinksFam.reduce((acc, curr) => acc + curr.qty, 0);
+    const totalSelectedPeqDrinks = selectedComboDrinksPeq.reduce((acc, curr) => acc + curr.qty, 0);
+    const totalSelectedMedDrinks = selectedComboDrinksMed.reduce((acc, curr) => acc + curr.qty, 0);
 
     useEffect(() => {
-        if (totalSelectedIndDrinks > totalIndCombos) {
-            let toRemove = totalSelectedIndDrinks - totalIndCombos;
-            const newSelected = [...selectedComboDrinksInd];
+        if (totalSelectedPeqDrinks > totalPeqCombos) {
+            let toRemove = totalSelectedPeqDrinks - totalPeqCombos;
+            const newSelected = [...selectedComboDrinksPeq];
             while (toRemove > 0 && newSelected.length > 0) {
                 let last = newSelected[newSelected.length - 1];
                 if (last.qty > toRemove) {
@@ -107,14 +108,14 @@ export default function CrossSellingModal() {
                     newSelected.pop();
                 }
             }
-            setSelectedComboDrinksInd(newSelected);
+            setSelectedComboDrinksPeq(newSelected);
         }
-    }, [totalIndCombos, totalSelectedIndDrinks, selectedComboDrinksInd]);
+    }, [totalPeqCombos, totalSelectedPeqDrinks, selectedComboDrinksPeq]);
 
     useEffect(() => {
-        if (totalSelectedFamDrinks > totalFamCombos) {
-            let toRemove = totalSelectedFamDrinks - totalFamCombos;
-            const newSelected = [...selectedComboDrinksFam];
+        if (totalSelectedMedDrinks > totalMedCombos) {
+            let toRemove = totalSelectedMedDrinks - totalMedCombos;
+            const newSelected = [...selectedComboDrinksMed];
             while (toRemove > 0 && newSelected.length > 0) {
                 let last = newSelected[newSelected.length - 1];
                 if (last.qty > toRemove) {
@@ -125,9 +126,9 @@ export default function CrossSellingModal() {
                     newSelected.pop();
                 }
             }
-            setSelectedComboDrinksFam(newSelected);
+            setSelectedComboDrinksMed(newSelected);
         }
-    }, [totalFamCombos, totalSelectedFamDrinks, selectedComboDrinksFam]);
+    }, [totalMedCombos, totalSelectedMedDrinks, selectedComboDrinksMed]);
 
     const toggleCombo = (combo, add) => {
         const existing = selectedCombos.find(c => c.combo.id === combo.id);
@@ -148,11 +149,11 @@ export default function CrossSellingModal() {
         }
     };
 
-    const toggleComboDrinkGeneric = (bebida, add, isInd) => {
-        const list = isInd ? selectedComboDrinksInd : selectedComboDrinksFam;
-        const setList = isInd ? setSelectedComboDrinksInd : setSelectedComboDrinksFam;
-        const totalMax = isInd ? totalIndCombos : totalFamCombos;
-        const currentTotal = isInd ? totalSelectedIndDrinks : totalSelectedFamDrinks;
+    const toggleComboDrinkGeneric = (bebida, add, isPeq) => {
+        const list = isPeq ? selectedComboDrinksPeq : selectedComboDrinksMed;
+        const setList = isPeq ? setSelectedComboDrinksPeq : setSelectedComboDrinksMed;
+        const totalMax = isPeq ? totalPeqCombos : totalMedCombos;
+        const currentTotal = isPeq ? totalSelectedPeqDrinks : totalSelectedMedDrinks;
 
         const existing = list.find(item => item.product.id === bebida.id);
 
@@ -194,31 +195,31 @@ export default function CrossSellingModal() {
 
     const handleComboAction = () => {
         if (totalCombosSelected === 0) {
-            setStep('bebidas'); // Si no lleva combo, pasamos a ofrecer bebidas individuales
+            setStep('bebidas'); // Si no lleva combo, pasamos a ofrecer bebidas sueltas
             return;
         }
 
-        if (totalSelectedIndDrinks !== totalIndCombos) {
-            alert(`Por favor selecciona las ${totalIndCombos} bebidas individuales correspondientes a tus combos.`);
+        if (totalSelectedPeqDrinks !== totalPeqCombos) {
+            alert(`Por favor selecciona las ${totalPeqCombos} bebidas pequeñas correspondientes a tus combos.`);
             return;
         }
 
-        if (totalSelectedFamDrinks !== totalFamCombos) {
-            alert(`Por favor selecciona las ${totalFamCombos} bebidas familiares correspondientes a tus Combos Grandes.`);
+        if (totalSelectedMedDrinks !== totalMedCombos) {
+            alert(`Por favor selecciona las ${totalMedCombos} bebidas medianas correspondientes a tus combos.`);
             return;
         }
 
         // Expanded lists of drinks to match combos
-        let flatIndDrinks = [];
-        selectedComboDrinksInd.forEach(d => { for (let i = 0; i < d.qty; i++) flatIndDrinks.push(d.product); });
+        let flatPeqDrinks = [];
+        selectedComboDrinksPeq.forEach(d => { for (let i = 0; i < d.qty; i++) flatPeqDrinks.push(d.product); });
 
-        let flatFamDrinks = [];
-        selectedComboDrinksFam.forEach(d => { for (let i = 0; i < d.qty; i++) flatFamDrinks.push(d.product); });
+        let flatMedDrinks = [];
+        selectedComboDrinksMed.forEach(d => { for (let i = 0; i < d.qty; i++) flatMedDrinks.push(d.product); });
 
         selectedCombos.forEach(c => {
             for (let i = 0; i < c.qty; i++) {
-                const isInd = c.combo.type === 'individual';
-                const drinkArr = isInd ? flatIndDrinks : flatFamDrinks;
+                const isPeq = c.combo.drinkType === 'pequena';
+                const drinkArr = isPeq ? flatPeqDrinks : flatMedDrinks;
                 const drink = drinkArr.pop(); // Take one matching drink
 
                 addItem({
@@ -369,25 +370,25 @@ export default function CrossSellingModal() {
                             })}
                         </div>
 
-                        {totalIndCombos > 0 && bebidasList.length > 0 && (
+                        {totalPeqCombos > 0 && bebidasPequenasList.length > 0 && (
                             <div className="cs-drink-selection fade-in" style={{ marginTop: 'var(--spacing-md)' }}>
                                 <label className="cs-label">
-                                    Bebidas para tus combos Pequeños/Medianos ({totalSelectedIndDrinks}/{totalIndCombos}):
-                                    {totalSelectedIndDrinks < totalIndCombos && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalIndCombos - totalSelectedIndDrinks} por elegir</span>}
+                                    Gaseosa Pequeña para tus combos ({totalSelectedPeqDrinks}/{totalPeqCombos}):
+                                    {totalSelectedPeqDrinks < totalPeqCombos && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalPeqCombos - totalSelectedPeqDrinks} por elegir</span>}
                                 </label>
                                 <div className="cs-drink-grid">
-                                    {bebidasList.map(bebida => {
-                                        const selected = selectedComboDrinksInd.find(d => d.product.id === bebida.id);
+                                    {bebidasPequenasList.map(bebida => {
+                                        const selected = selectedComboDrinksPeq.find(d => d.product.id === bebida.id);
                                         const qty = selected ? selected.qty : 0;
                                         return (
                                             <div key={bebida.id} className={`cs-drink-option ${qty > 0 ? 'selected' : ''}`} onClick={() => toggleComboDrinkGeneric(bebida, true, true)}>
                                                 {bebida.imageURL ? <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" /> : <span className="material-icons-round cs-drink-icon">local_drink</span>}
                                                 <span className="cs-drink-name">{bebida.name}</span>
-                                                {qty > 0 && totalIndCombos > 1 && (
+                                                {qty > 0 && totalPeqCombos > 1 && (
                                                     <div className="cs-drink-qty-mini fade-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', borderRadius: '20px', padding: '2px 6px', marginTop: '6px' }}>
                                                         <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, false, true)} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>remove</span></button>
                                                         <span style={{ fontWeight: 'bold', fontSize: 14 }}>{qty}</span>
-                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, true, true)} disabled={totalSelectedIndDrinks >= totalIndCombos} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>add</span></button>
+                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, true, true)} disabled={totalSelectedPeqDrinks >= totalPeqCombos} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>add</span></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -397,25 +398,25 @@ export default function CrossSellingModal() {
                             </div>
                         )}
 
-                        {totalFamCombos > 0 && bebidasFamiliaresList.length > 0 && (
+                        {totalMedCombos > 0 && bebidasMedianasList.length > 0 && (
                             <div className="cs-drink-selection fade-in" style={{ marginTop: 'var(--spacing-md)' }}>
                                 <label className="cs-label">
-                                    Bebidas para tus combos Grandes ({totalSelectedFamDrinks}/{totalFamCombos}):
-                                    {totalSelectedFamDrinks < totalFamCombos && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalFamCombos - totalSelectedFamDrinks} por elegir</span>}
+                                    Gaseosa Mediana para tus combos ({totalSelectedMedDrinks}/{totalMedCombos}):
+                                    {totalSelectedMedDrinks < totalMedCombos && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalMedCombos - totalSelectedMedDrinks} por elegir</span>}
                                 </label>
                                 <div className="cs-drink-grid">
-                                    {bebidasFamiliaresList.map(bebida => {
-                                        const selected = selectedComboDrinksFam.find(d => d.product.id === bebida.id);
+                                    {bebidasMedianasList.map(bebida => {
+                                        const selected = selectedComboDrinksMed.find(d => d.product.id === bebida.id);
                                         const qty = selected ? selected.qty : 0;
                                         return (
                                             <div key={bebida.id} className={`cs-drink-option ${qty > 0 ? 'selected' : ''}`} onClick={() => toggleComboDrinkGeneric(bebida, true, false)}>
-                                                {bebida.imageURL ? <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" /> : <span className="material-icons-round cs-drink-icon">liquor</span>}
+                                                {bebida.imageURL ? <img src={bebida.imageURL} alt={bebida.name} className="cs-drink-img" /> : <span className="material-icons-round cs-drink-icon">wine_bar</span>}
                                                 <span className="cs-drink-name">{bebida.name}</span>
-                                                {qty > 0 && totalFamCombos > 1 && (
+                                                {qty > 0 && totalMedCombos > 1 && (
                                                     <div className="cs-drink-qty-mini fade-in" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-bg)', borderRadius: '20px', padding: '2px 6px', marginTop: '6px' }}>
                                                         <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, false, false)} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>remove</span></button>
                                                         <span style={{ fontWeight: 'bold', fontSize: 14 }}>{qty}</span>
-                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, true, false)} disabled={totalSelectedFamDrinks >= totalFamCombos} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>add</span></button>
+                                                        <button className="btn btn-icon btn-sm btn-ghost" onClick={() => toggleComboDrinkGeneric(bebida, true, false)} disabled={totalSelectedMedDrinks >= totalMedCombos} style={{ width: 24, height: 24, minHeight: 0 }}><span className="material-icons-round" style={{ fontSize: 16 }}>add</span></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -441,8 +442,8 @@ export default function CrossSellingModal() {
                         <p className="cs-desc">Refresca tu pedido individual con nuestras gaseosas y jugos.</p>
 
                         <div className="cs-items-list">
-                            {[...bebidasList, ...bebidasFamiliaresList].length === 0 && <p className="cs-empty">No hay bebidas disponibles.</p>}
-                            {[...bebidasList, ...bebidasFamiliaresList].map(bebida => {
+                            {[...bebidasPequenasList, ...bebidasMedianasList, ...bebidasGrandesList].length === 0 && <p className="cs-empty">No hay bebidas disponibles.</p>}
+                            {[...bebidasPequenasList, ...bebidasMedianasList, ...bebidasGrandesList].map(bebida => {
                                 const selected = tempBebidas.find(b => b.product.id === bebida.id);
                                 const qty = selected ? selected.qty : 0;
                                 return (
@@ -500,12 +501,12 @@ export default function CrossSellingModal() {
                                 {selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0) < totalFamiliarQty && <span style={{ display: 'block', fontSize: '13px', color: 'var(--color-primary)', marginTop: '4px' }}>Faltan {totalFamiliarQty - selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0)} por elegir</span>}
                             </label>
 
-                            {bebidasFamiliaresList.length === 0 && (
-                                <p className="cs-empty">No hay sabores familiares disponibles actualmente.</p>
+                            {bebidasGrandesList.length === 0 && (
+                                <p className="cs-empty">No hay sabores grandes disponibles actualmente.</p>
                             )}
 
                             <div className="cs-drink-grid">
-                                {bebidasFamiliaresList.map(bebida => {
+                                {bebidasGrandesList.map(bebida => {
                                     const selected = selectedFamiliarDrinks.find(d => d.product.id === bebida.id);
                                     const qty = selected ? selected.qty : 0;
                                     const currTotalFamiliarSelected = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
