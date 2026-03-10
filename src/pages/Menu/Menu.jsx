@@ -5,31 +5,56 @@ import CategoryFilter from '../../components/Product/CategoryFilter';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
 import { getStoreStatus, getBusinessHoursText, getNextOpenTime } from '../../utils/businessHours';
+import { INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import './Menu.css';
 
 export default function Menu() {
     const { products, loading } = useProducts();
-    const [activeCategory, setActiveCategory] = useState('all');
+    const [activeCategory, setActiveCategory] = useState('individual');
     const [search, setSearch] = useState('');
     const storeStatus = getStoreStatus();
 
-    const filtered = useMemo(() => {
-        return products
-            .filter((p) => {
-                // Ocultar categorías de ventas cruzadas (cross-selling) del panel principal
-                if (['bebidas_pequenas', 'bebidas_medianas', 'bebidas_grandes', 'adicionales'].includes(p.category)) {
-                    return false;
-                }
-                const matchCategory = activeCategory === 'all' || p.category === activeCategory;
-                const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
-                return matchCategory && matchSearch;
-            })
-            .sort((a, b) => {
-                // Destacados primero
-                if (a.isFeatured && !b.isFeatured) return -1;
-                if (!a.isFeatured && b.isFeatured) return 1;
-                return 0; // Mantener orden original si ambos son o no son destacados
+    const { featuredList, groupedProducts, regularList, hasResults } = useMemo(() => {
+        const filtered = products.filter((p) => {
+            // Ocultar categorías de ventas cruzadas (cross-selling) del panel principal
+            if (['bebidas_pequenas', 'bebidas_medianas', 'bebidas_grandes', 'adicionales'].includes(p.category)) {
+                return false;
+            }
+            const matchCategory = p.category === activeCategory;
+            const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.description.toLowerCase().includes(search.toLowerCase());
+            return matchCategory && matchSearch;
+        });
+
+        const featuredList = filtered.filter(p => p.featured);
+
+        let groupedProducts = null;
+        let regularList = null;
+
+        if (activeCategory === 'individual') {
+            groupedProducts = {};
+            INDIVIDUAL_SUBCATEGORIES.forEach(sub => {
+                groupedProducts[sub.id] = [];
             });
+            groupedProducts['otros'] = [];
+
+            filtered.forEach(p => {
+                const subId = p.subCategory || 'otros';
+                if (groupedProducts[subId]) {
+                    groupedProducts[subId].push(p);
+                } else {
+                    groupedProducts['otros'].push(p);
+                }
+            });
+        } else {
+            regularList = filtered;
+        }
+
+        return {
+            featuredList,
+            groupedProducts,
+            regularList,
+            hasResults: filtered.length > 0
+        };
     }, [products, activeCategory, search]);
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
@@ -71,13 +96,60 @@ export default function Menu() {
                     </div>
                 </div>
                 <CategoryFilter activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
-                {filtered.length === 0 ? (
+                {!hasResults ? (
                     <EmptyState icon="search_off" title="Sin resultados" message="No encontramos productos con ese criterio" />
                 ) : (
-                    <div className="menu-grid">
-                        {filtered.map((product, index) => (
-                            <ProductCard key={product.id} product={product} index={index} />
-                        ))}
+                    <div className="menu-sections-container">
+                        {featuredList.length > 0 && (
+                            <div className="menu-section">
+                                <h3 className="section-divider"><span>★ Destacados</span></h3>
+                                <div className="menu-grid">
+                                    {featuredList.map((product, index) => (
+                                        <ProductCard key={product.id} product={product} index={index} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {groupedProducts && (
+                            <>
+                                {INDIVIDUAL_SUBCATEGORIES.map(subCategory => {
+                                    const items = groupedProducts[subCategory.id];
+                                    if (!items || items.length === 0) return null;
+                                    return (
+                                        <div className="menu-section" key={subCategory.id}>
+                                            <h3 className="section-divider"><span>{subCategory.label}</span></h3>
+                                            <div className="menu-grid">
+                                                {items.map((product, index) => (
+                                                    <ProductCard key={product.id} product={product} index={index} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {groupedProducts['otros'] && groupedProducts['otros'].length > 0 && (
+                                    <div className="menu-section">
+                                        <h3 className="section-divider"><span>Más opciones</span></h3>
+                                        <div className="menu-grid">
+                                            {groupedProducts['otros'].map((product, index) => (
+                                                <ProductCard key={product.id} product={product} index={index} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        {regularList && regularList.length > 0 && (
+                            <div className="menu-section">
+                                {featuredList.length > 0 && <h3 className="section-divider"><span>Todo el menú</span></h3>}
+                                <div className="menu-grid">
+                                    {regularList.map((product, index) => (
+                                        <ProductCard key={product.id} product={product} index={index} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -4,13 +4,7 @@ import './CategoryFilter.css';
 export default function CategoryFilter({ activeCategory, onCategoryChange }) {
     return (
         <div className="category-filter">
-            <button
-                className={`chip ${activeCategory === 'all' ? 'active' : ''}`}
-                onClick={() => onCategoryChange('all')}
-            >
-                <span className="material-icons-round" style={{ fontSize: 18 }}>apps</span>
-                Todos
-            </button>
+
             {CATEGORIES.filter(c => !['bebidas_pequenas', 'bebidas_medianas', 'bebidas_grandes', 'adicionales'].includes(c.id)).map((cat) => (
                 <button
                     key={cat.id}

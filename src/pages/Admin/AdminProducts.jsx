@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useProducts } from '../../contexts/ProductsContext';
-import { CATEGORIES } from '../../data/menuData';
+import { CATEGORIES, INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import Modal from '../../components/UI/Modal';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
@@ -14,12 +14,23 @@ export default function AdminProducts() {
     const [imageFile, setImageFile] = useState(null);
     const [saving, setSaving] = useState(false);
     const [form, setForm] = useState({
-        name: '', description: '', price: '', category: CATEGORIES[0].id, available: true, featured: false, order: 0
+        name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: 0
+    });
+
+    // Filtros para el panel de organizador
+    const [filterCategory, setFilterCategory] = useState('all');
+    const [filterSubCategory, setFilterSubCategory] = useState('all');
+
+    // Productos filtrados según el modo organizador
+    const filteredProducts = products.filter(p => {
+        if (filterCategory !== 'all' && p.category !== filterCategory) return false;
+        if (filterCategory === 'individual' && filterSubCategory !== 'all' && p.subCategory !== filterSubCategory) return false;
+        return true;
     });
 
     const openNew = () => {
         setEditingProduct(null);
-        setForm({ name: '', description: '', price: '', category: CATEGORIES[0].id, available: true, featured: false, order: products.length + 1 });
+        setForm({ name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: products.length + 1 });
         setImageFile(null);
         setModalOpen(true);
     };
@@ -33,7 +44,7 @@ export default function AdminProducts() {
 
         setForm({
             name: product.name, description: product.description, price: product.price.toString(),
-            category: validCategory, available: product.available, featured: product.featured, order: product.order || 0
+            category: validCategory, subCategory: product.subCategory || '', available: product.available, featured: product.featured, order: product.order || 0
         });
         setImageFile(null);
         setModalOpen(true);
@@ -44,12 +55,17 @@ export default function AdminProducts() {
             showToast('Completa nombre y precio', 'error');
             return;
         }
+        if (form.category === 'individual' && !form.subCategory) {
+            showToast('Selecciona un tipo para el producto individual', 'error');
+            return;
+        }
         setSaving(true);
         const productData = {
             name: form.name.trim(),
             description: form.description.trim(),
             price: parseInt(form.price) || 0,
             category: form.category,
+            subCategory: form.category === 'individual' ? form.subCategory : null,
             available: form.available,
             featured: form.featured,
             order: parseInt(form.order) || 0
@@ -89,11 +105,32 @@ export default function AdminProducts() {
                     </button>
                 </div>
 
-                {products.length === 0 ? (
-                    <EmptyState icon="inventory_2" title="Sin productos" message="Agrega tu primer producto al menú" />
+                <div className="admin-organizer-filters" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                    <div className="input-group" style={{ flex: '1', minWidth: '200px' }}>
+                        <select className="input-field" value={filterCategory} onChange={(e) => {
+                            setFilterCategory(e.target.value);
+                            setFilterSubCategory('all');
+                        }}>
+                            <option value="all">Ver Todas las Categorías</option>
+                            {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                    </div>
+
+                    {filterCategory === 'individual' && (
+                        <div className="input-group" style={{ flex: '1', minWidth: '200px' }}>
+                            <select className="input-field" value={filterSubCategory} onChange={(e) => setFilterSubCategory(e.target.value)}>
+                                <option value="all">Todos los tipos de Individual</option>
+                                {INDIVIDUAL_SUBCATEGORIES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                            </select>
+                        </div>
+                    )}
+                </div>
+
+                {filteredProducts.length === 0 ? (
+                    <EmptyState icon="inventory_2" title="Sin productos" message={products.length === 0 ? "Agrega tu primer producto al menú" : "Ningún producto coincide con el filtro"} />
                 ) : (
                     <div className="admin-products-list">
-                        {products.map((product) => (
+                        {filteredProducts.map((product) => (
                             <div key={product.id} className="admin-product-row">
                                 <div className="admin-product-img">
                                     {product.imageURL ? (
@@ -104,7 +141,12 @@ export default function AdminProducts() {
                                 </div>
                                 <div className="admin-product-info">
                                     <span className="admin-product-name">{product.name}</span>
-                                    <span className="admin-product-cat">{CATEGORIES.find((c) => c.id === product.category)?.label || product.category}</span>
+                                    <span className="admin-product-cat">
+                                        {CATEGORIES.find((c) => c.id === product.category)?.label || product.category}
+                                        {product.category === 'individual' && product.subCategory && (
+                                            <> &rsaquo; <strong>{INDIVIDUAL_SUBCATEGORIES.find(s => s.id === product.subCategory)?.label || product.subCategory}</strong></>
+                                        )}
+                                    </span>
                                 </div>
                                 <span className="admin-product-price">${product.price.toLocaleString('es-CO')}</span>
                                 <div className="admin-product-actions">
@@ -152,6 +194,17 @@ export default function AdminProducts() {
                                 </select>
                             </div>
                         </div>
+                        {form.category === 'individual' && (
+                            <div className="input-group">
+                                <label>Tipo de Individual</label>
+                                <select className="input-field" value={form.subCategory} onChange={(e) => setForm({ ...form, subCategory: e.target.value })}>
+                                    <option value="" disabled>Selecciona un tipo...</option>
+                                    {INDIVIDUAL_SUBCATEGORIES.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>{cat.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div className="input-group">
                             <label>Imagen del producto</label>
                             <input type="file" accept="image/*" className="input-field" onChange={(e) => setImageFile(e.target.files[0])} />
