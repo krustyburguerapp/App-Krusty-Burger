@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { db, isDemoMode } from '../config/firebase';
 import {
     collection, onSnapshot, doc,
-    addDoc, updateDoc, serverTimestamp
+    addDoc, updateDoc, serverTimestamp, increment
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
 import { useAuth } from './AuthContext';
@@ -203,8 +203,18 @@ export function OrdersProvider({ children }) {
         }
     };
 
+    const sendInsist = async (orderId) => {
+        try {
+            const orderRef = doc(db, 'orders', orderId);
+            await updateDoc(orderRef, { insistCount: increment(1) });
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    };
+
     return (
-        <OrdersContext.Provider value={{ orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen }}>
+        <OrdersContext.Provider value={{ orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen, sendInsist }}>
             {children}
         </OrdersContext.Provider>
     );
