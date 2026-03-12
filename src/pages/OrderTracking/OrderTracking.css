@@ -150,17 +150,26 @@
 
 .stamps-container {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: var(--color-bg);
-    padding: 16px 12px;
+    padding: 12px 8px;
     border-radius: var(--radius-md);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.stamps-container::-webkit-scrollbar {
+    display: none;
 }
 
 .stamp-slot {
-    width: 48px;
-    height: 48px;
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -175,7 +184,7 @@
 
 /* Número en espacios vacíos */
 .stamp-number {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: rgba(255,255,255,0.3);
     font-family: var(--font-display);
@@ -205,9 +214,26 @@
 }
 
 .stamp-prize {
-    font-size: 28px;
+    font-size: 24px;
     animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+}
+
+/* Responsive para móviles pequeños */
+@media (max-width: 380px) {
+    .stamp-slot {
+        width: 36px;
+        height: 36px;
+        min-width: 36px;
+    }
+    
+    .stamp-number {
+        font-size: 14px;
+    }
+    
+    .stamp-prize {
+        font-size: 20px;
+    }
 }
 
 @keyframes popIn {
