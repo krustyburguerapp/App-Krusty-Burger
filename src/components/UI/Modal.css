@@ -16,7 +16,9 @@
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-xl);
     max-height: 90vh;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     animation: scaleIn var(--transition-normal) var(--ease-bounce);
     width: 100%;
 }
@@ -42,6 +44,7 @@
     top: 0;
     background: var(--color-bg-card);
     z-index: 1;
+    flex-shrink: 0;
 }
 
 .modal-title {
@@ -52,4 +55,8 @@
 
 .modal-body {
     padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-lg);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }

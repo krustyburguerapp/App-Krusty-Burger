@@ -5,7 +5,6 @@ const CartContext = createContext(null);
 export function CartProvider({ children }) {
     const [items, setItems] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
-    const [isCrossSellingOpen, setIsCrossSellingOpen] = useState(false);
 
     const addItem = useCallback((product) => {
         setItems((prev) => {
@@ -52,8 +51,6 @@ export function CartProvider({ children }) {
         items,
         isOpen,
         setIsOpen,
-        isCrossSellingOpen,
-        setIsCrossSellingOpen,
         addItem,
         removeItem,
         updateQuantity,

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useProducts } from '../../contexts/ProductsContext';
 import ProductCard from '../../components/Product/ProductCard';
+import ProductBuilderModal from '../../components/Product/ProductBuilderModal';
 import CategoryFilter from '../../components/Product/CategoryFilter';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
@@ -12,6 +13,7 @@ export default function Menu() {
     const { products, loading } = useProducts();
     const [activeCategory, setActiveCategory] = useState('individual');
     const [search, setSearch] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState(null);
     const storeStatus = getStoreStatus();
 
     const { featuredList, groupedProducts, regularList, hasResults } = useMemo(() => {
@@ -59,6 +61,10 @@ export default function Menu() {
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
 
+    const handleProductSelect = (product) => {
+        setSelectedProduct(product);
+    };
+
     return (
         <div className="page">
             <div className="container">
@@ -105,7 +111,7 @@ export default function Menu() {
                                 <h3 className="section-divider"><span>★ Destacados</span></h3>
                                 <div className="menu-grid">
                                     {featuredList.map((product, index) => (
-                                        <ProductCard key={product.id} product={product} index={index} />
+                                        <ProductCard key={product.id} product={product} index={index} onSelect={handleProductSelect} />
                                     ))}
                                 </div>
                             </div>
@@ -121,7 +127,7 @@ export default function Menu() {
                                             <h3 className="section-divider"><span>{subCategory.label}</span></h3>
                                             <div className="menu-grid">
                                                 {items.map((product, index) => (
-                                                    <ProductCard key={product.id} product={product} index={index} />
+                                                    <ProductCard key={product.id} product={product} index={index} onSelect={handleProductSelect} />
                                                 ))}
                                             </div>
                                         </div>
@@ -132,7 +138,7 @@ export default function Menu() {
                                         <h3 className="section-divider"><span>Más opciones</span></h3>
                                         <div className="menu-grid">
                                             {groupedProducts['otros'].map((product, index) => (
-                                                <ProductCard key={product.id} product={product} index={index} />
+                                                <ProductCard key={product.id} product={product} index={index} onSelect={handleProductSelect} />
                                             ))}
                                         </div>
                                     </div>
@@ -145,7 +151,7 @@ export default function Menu() {
                                 {featuredList.length > 0 && <h3 className="section-divider"><span>Todo el menú</span></h3>}
                                 <div className="menu-grid">
                                     {regularList.map((product, index) => (
-                                        <ProductCard key={product.id} product={product} index={index} />
+                                        <ProductCard key={product.id} product={product} index={index} onSelect={handleProductSelect} />
                                     ))}
                                 </div>
                             </div>
@@ -153,6 +159,12 @@ export default function Menu() {
                     </div>
                 )}
             </div>
+
+            <ProductBuilderModal
+                isOpen={!!selectedProduct}
+                onClose={() => setSelectedProduct(null)}
+                product={selectedProduct}
+            />
         </div>
     );
 }

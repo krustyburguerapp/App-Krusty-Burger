@@ -4,12 +4,12 @@ import EmptyState from '../UI/EmptyState';
 import './CartDrawer.css';
 
 export default function CartDrawer() {
-    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems, setIsCrossSellingOpen } = useCart();
+    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems } = useCart();
     const navigate = useNavigate();
 
     const handleCheckout = () => {
         setIsOpen(false);
-        setIsCrossSellingOpen(true);
+        navigate('/checkout');
     };
 
     if (!isOpen) return null;
