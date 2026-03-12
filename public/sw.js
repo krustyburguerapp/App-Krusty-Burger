@@ -31,6 +31,16 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
+    // NAVIGATION FALLBACK para SPA: todas las peticiones de navegacion
+    // (ej: /profile, /orders, /admin) deben devolver /index.html
+    // porque el routing lo maneja React Router en el cliente.
+    if (request.mode === 'navigate') {
+        event.respondWith(
+            fetch(request).catch(() => caches.match('/index.html'))
+        );
+        return;
+    }
+
     if (url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com') {
         event.respondWith(
             caches.open(CACHE_NAME).then((cache) => {

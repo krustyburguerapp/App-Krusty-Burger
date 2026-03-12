@@ -57,36 +57,23 @@ function AppLayout({ children }) {
     );
 }
 
-function AppRoutes() {
+// Componente que decide qué mostrar en la ruta "/" según el estado de auth
+// Sin cambiar el árbol de Routes (evita desmontaje/remontaje)
+function HomeRedirect() {
     const { user, loading } = useAuth();
 
-    // Show welcome page ONLY if we KNOW user is not authenticated (loading finished)
-    // Show the routes while still loading - the menu can load without auth
-    if (!loading && !user) {
-        return (
-            <Routes>
-                <Route path="/" element={<Suspense fallback={<LoadingScreen />}><Welcome /></Suspense>} />
-                <Route path="/menu" element={<AppLayout><Menu /></AppLayout>} />
-                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
-            </Routes>
-        );
-    }
+    if (loading) return <LoadingScreen />;
+    if (!user) return <Suspense fallback={<LoadingScreen />}><Welcome /></Suspense>;
+    return <Navigate to="/menu" replace />;
+}
 
-    // While loading, allow menu route to work (it doesn't require auth data)
-    // This prevents the infinite spinner on initial load
-    if (loading) {
-        return (
-            <Routes>
-                <Route path="/" element={<LoadingScreen />} />
-                <Route path="/menu" element={<AppLayout><Menu /></AppLayout>} />
-                <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
-            </Routes>
-        );
-    }
-
+function AppRoutes() {
+    // UN SOLO árbol de <Routes> que SIEMPRE se renderiza con la misma estructura.
+    // La lógica de autenticación se maneja DENTRO de cada componente wrapper
+    // (HomeRedirect, ProtectedRoute, AdminRoute), no cambiando el árbol completo.
     return (
         <Routes>
-            <Route path="/" element={<Navigate to="/menu" replace />} />
+            <Route path="/" element={<HomeRedirect />} />
             <Route path="/menu" element={<AppLayout><Menu /></AppLayout>} />
             <Route path="/checkout" element={<ProtectedRoute><AppLayout><Checkout /></AppLayout></ProtectedRoute>} />
             <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><AppLayout><OrderConfirmation /></AppLayout></ProtectedRoute>} />
@@ -95,7 +82,7 @@ function AppRoutes() {
             <Route path="/admin" element={<AdminRoute><AppLayout><AdminDashboard /></AppLayout></AdminRoute>} />
             <Route path="/admin/orders" element={<AdminRoute><AppLayout><AdminOrders /></AppLayout></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AppLayout><AdminProducts /></AppLayout></AdminRoute>} />
-            <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
+            <Route path="*" element={<AppLayout><Suspense fallback={<LoadingScreen />}><NotFound /></Suspense></AppLayout>} />
         </Routes>
     );
 }
