@@ -4,7 +4,7 @@ import EmptyState from '../UI/EmptyState';
 import './CartDrawer.css';
 
 export default function CartDrawer() {
-    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems } = useCart();
+    const { items, isOpen, setIsOpen, updateQuantity, removeItem, subtotal, totalItems, deliveryFee, total } = useCart();
     const navigate = useNavigate();
 
     const handleCheckout = () => {
@@ -68,10 +68,23 @@ export default function CartDrawer() {
                             <span>Subtotal</span>
                             <span className="cart-total-price">${subtotal.toLocaleString('es-CO')}</span>
                         </div>
+                        {deliveryFee > 0 && (
+                            <div className="cart-total" style={{ fontSize: '14px', opacity: 0.8 }}>
+                                <span>Domicilio</span>
+                                <span className="cart-total-price">${deliveryFee.toLocaleString('es-CO')}</span>
+                            </div>
+                        )}
+                        <div className="cart-total" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '12px', marginTop: '8px' }}>
+                            <span style={{ fontWeight: 'bold' }}>Total estimado</span>
+                            <span className="cart-total-price" style={{ fontWeight: 'bold' }}>${total.toLocaleString('es-CO')}</span>
+                        </div>
                         <button className="btn btn-primary btn-lg btn-full" onClick={handleCheckout}>
                             <span className="material-icons-round">shopping_bag</span>
                             Continuar tu compra
                         </button>
+                        <small style={{ textAlign: 'center', color: 'var(--color-text-hint)', fontSize: '12px', marginTop: '8px' }}>
+                            * El valor final del domicilio se calcula en el checkout según la distancia
+                        </small>
                     </div>
                 )}
             </div>

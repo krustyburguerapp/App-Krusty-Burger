@@ -5,6 +5,7 @@ const CartContext = createContext(null);
 export function CartProvider({ children }) {
     const [items, setItems] = useState([]);
     const [isOpen, setIsOpen] = useState(false);
+    const [deliveryFee, setDeliveryFee] = useState(0);
 
     const addItem = useCallback((product) => {
         setItems((prev) => {
@@ -46,6 +47,7 @@ export function CartProvider({ children }) {
 
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const total = subtotal + deliveryFee;
 
     const value = {
         items,
@@ -55,8 +57,11 @@ export function CartProvider({ children }) {
         removeItem,
         updateQuantity,
         clearCart,
+        setDeliveryFee,
         totalItems,
-        subtotal
+        subtotal,
+        deliveryFee,
+        total
     };
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

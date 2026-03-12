@@ -6,12 +6,27 @@ import { useOrders } from '../../contexts/OrdersContext';
 import { isStoreOpen, getBusinessHoursText } from '../../utils/businessHours';
 import { calculateEstimatedTime } from '../../utils/estimatedTime';
 import { showToast } from '../../utils/notifications';
+import { calculateDeliveryInfo, MAX_DELIVERY_DISTANCE_KM } from '../../utils/deliveryCost';
+import { STORE_LOCATION } from '../../config/storeLocation';
 import Spinner from '../../components/UI/Spinner';
 import './Checkout.css';
 
+// Función para extraer coordenadas de una URL de Google Maps
+function extractCoordinates(url) {
+    if (!url) return null;
+    const match = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+    if (match) {
+        return {
+            latitude: parseFloat(match[1]),
+            longitude: parseFloat(match[2])
+        };
+    }
+    return null;
+}
+
 export default function Checkout() {
     const { user, userData, updateUserData } = useAuth();
-    const { items, subtotal, clearCart } = useCart();
+    const { items, subtotal, clearCart, deliveryFee, setDeliveryFee, total } = useCart();
     const { createOrder } = useOrders();
     const navigate = useNavigate();
 
@@ -28,10 +43,10 @@ export default function Checkout() {
     const [orderNotes, setOrderNotes] = useState('');
     const [locationUrl, setLocationUrl] = useState('');
     const [loadingLocation, setLoadingLocation] = useState(false);
+    const [userCoordinates, setUserCoordinates] = useState(null);
+    const [distanceInfo, setDistanceInfo] = useState(null);
 
     const hasProfile = userData?.hasCompletedProfile && userData?.phone;
-    const deliveryFee = deliveryType === 'delivery' ? 5000 : 0;
-    const total = subtotal + deliveryFee;
     const storeOpen = isStoreOpen(deliveryType);
 
     useEffect(() => {
@@ -40,12 +55,37 @@ export default function Checkout() {
             setAddress(userData.address || '');
             setAddressNotes(userData.addressNotes || '');
             setLocationUrl(userData.locationUrl || '');
+            // Extraer coordenadas de la URL de ubicación guardada si existe
+            if (userData.locationUrl) {
+                const coords = extractCoordinates(userData.locationUrl);
+                if (coords) {
+                    setUserCoordinates(coords);
+                }
+            }
         }
     }, [userData, hasProfile, editMode]);
 
     useEffect(() => {
         calculateEstimatedTime(deliveryType).then(setEstimatedTime);
     }, [deliveryType]);
+
+    // Calcular tarifa cuando cambian las coordenadas o el tipo de entrega
+    useEffect(() => {
+        if (userCoordinates && deliveryType === 'delivery') {
+            const info = calculateDeliveryInfo(
+                userCoordinates.latitude,
+                userCoordinates.longitude,
+                STORE_LOCATION.latitude,
+                STORE_LOCATION.longitude,
+                MAX_DELIVERY_DISTANCE_KM
+            );
+            setDistanceInfo(info);
+            setDeliveryFee(info.isWithinRange ? info.fee : 0);
+        } else if (deliveryType === 'pickup') {
+            setDistanceInfo(null);
+            setDeliveryFee(0);
+        }
+    }, [userCoordinates, deliveryType, setDeliveryFee]);
 
     useEffect(() => {
         if (items.length === 0) navigate('/menu');
@@ -56,6 +96,9 @@ export default function Checkout() {
         if (!phone.trim() || phone.replace(/\D/g, '').length < 10) errs.phone = 'Ingresa un número de WhatsApp válido (mínimo 10 dígitos)';
         if (deliveryType === 'delivery' && (!address.trim() || !locationUrl)) {
             errs.address = 'Debes ingresar tu dirección escrita y adjuntar tu ubicación GPS';
+        }
+        if (deliveryType === 'delivery' && distanceInfo && !distanceInfo.isWithinRange) {
+            errs.distance = `Superas el límite máximo de ${MAX_DELIVERY_DISTANCE_KM} km. Distancia actual: ${distanceInfo.distance} km`;
         }
 
         if (!paymentMethod) {
@@ -82,6 +125,7 @@ export default function Checkout() {
             (position) => {
                 const { latitude, longitude } = position.coords;
                 setLocationUrl(`https://maps.google.com/?q=${latitude},${longitude}`);
+                setUserCoordinates({ latitude, longitude });
                 setLoadingLocation(false);
                 showToast('Ubicación obtenida automáticamente', 'success');
             },
@@ -161,7 +205,7 @@ export default function Checkout() {
                         <button className={`checkout-delivery-option ${deliveryType === 'delivery' ? 'active' : ''}`} onClick={() => setDeliveryType('delivery')}>
                             <span className="material-icons-round">delivery_dining</span>
                             <span>Domicilio</span>
-                            <small>+$5,000</small>
+                            <small>{distanceInfo ? `+${distanceInfo.fee?.toLocaleString('es-CO')}` : '+$5,000'}</small>
                         </button>
                         <button className={`checkout-delivery-option ${deliveryType === 'pickup' ? 'active' : ''}`} onClick={() => setDeliveryType('pickup')}>
                             <span className="material-icons-round">storefront</span>
@@ -169,6 +213,21 @@ export default function Checkout() {
                             <small>Gratis</small>
                         </button>
                     </div>
+                    {distanceInfo && deliveryType === 'delivery' && (
+                        <div style={{ marginTop: '12px', padding: '12px', backgroundColor: 'var(--color-surface)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                            <span className="material-icons-round" style={{ color: 'var(--color-primary)', fontSize: 20 }}>location_on</span>
+                            <span>
+                                <strong>Distancia: {distanceInfo.distance} km</strong>
+                                {distanceInfo.isWithinRange 
+                                    ? ` - Tarifa calculada: $${deliveryFee.toLocaleString('es-CO')}`
+                                    : ` - ⚠️ Superas el límite de ${MAX_DELIVERY_DISTANCE_KM} km`
+                                }
+                            </span>
+                        </div>
+                    )}
+                    {errors.distance && (
+                        <span className="input-error-text" style={{ display: 'block', marginTop: '8px' }}>{errors.distance}</span>
+                    )}
                 </div>
 
                 <div className="checkout-section">
@@ -274,7 +333,7 @@ export default function Checkout() {
                         </div>
                         {deliveryType === 'delivery' && (
                             <div className="checkout-summary-item">
-                                <span>Domicilio</span>
+                                <span>Domicilio ({distanceInfo?.distance || '--'} km)</span>
                                 <span>${deliveryFee.toLocaleString('es-CO')}</span>
                             </div>
                         )}
@@ -352,7 +411,11 @@ export default function Checkout() {
                     )}
                 </div>
 
-                <button className="btn btn-primary btn-lg btn-full checkout-submit" onClick={handleSubmit} disabled={loading || !storeOpen}>
+                <button 
+                    className="btn btn-primary btn-lg btn-full checkout-submit" 
+                    onClick={handleSubmit} 
+                    disabled={loading || !storeOpen || (distanceInfo && !distanceInfo.isWithinRange)}
+                >
                     {loading ? <><Spinner size="sm" color="white" /> Procesando...</> : (
                         <><span className="material-icons-round">check_circle</span> Confirmar Pedido — ${total.toLocaleString('es-CO')}</>
                     )}
