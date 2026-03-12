@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrders, getStatusLabel, getStatusColor } from '../../contexts/OrdersContext';
 import OrderTracker from '../../components/Order/OrderTracker';
@@ -11,11 +12,8 @@ export default function OrderTracking() {
     const { user } = useAuth();
     const { orders, loading, error, sendInsist } = useOrders();
     const [insistTriggers, setInsistTriggers] = useState({});
-    const [localCounts, setLocalCounts] = useState({});
 
-    const handleInsist = async (orderId) => {
-        const newCount = (localCounts[orderId] || 0) + 1;
-        setLocalCounts(prev => ({ ...prev, [orderId]: newCount }));
+    const handleInsistReal = async (orderId) => {
         setInsistTriggers(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
         await sendInsist(orderId);
     };
@@ -31,7 +29,71 @@ export default function OrderTracking() {
     );
 
     const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
-    const pastOrders = orders.filter((o) => ['delivered', 'cancelled'].includes(o.status));
+    const pastOrders = orders.filter((o) => o.status === 'delivered'); // Solo las entregadas sirven para fidelidad
+
+    // --- LÓGICA DE FIDELIDAD (Sellos Krusty) ---
+    const calculateLoyaltyDays = () => {
+        const today = new Date();
+        const currentMonth = today.getMonth();
+        const currentYear = today.getFullYear();
+        
+        const uniqueDays = new Set();
+        
+        pastOrders.forEach(order => {
+            const dateStr = order.createdAt;
+            if (dateStr) {
+                const dateObj = dateStr.toDate ? dateStr.toDate() : new Date(dateStr);
+                if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
+                    uniqueDays.add(dateObj.getDate()); // Agrega el día del mes al Set (evita duplicados)
+                }
+            }
+        });
+        
+        return Math.min(uniqueDays.size, 7); // Maximo 7 sellos visuales
+    };
+
+    const loyaltyStamps = calculateLoyaltyDays();
+
+    useEffect(() => {
+        // Mostrar popup si la persona tiene exactamente 1 sello ganado (su primer pedido del mes)
+        if (loyaltyStamps >= 1 && activeOrders.length === 0) {
+            const currentMonthKey = `krusty_loyalty_popup_${new Date().getMonth()}_${new Date().getFullYear()}`;
+            const hasSeenPopup = localStorage.getItem(currentMonthKey);
+
+            if (!hasSeenPopup && loyaltyStamps < 7) {
+                setTimeout(() => {
+                    Swal.fire({
+                        title: '¡Llevas 1 Sello Krusty!',
+                        html: 'Recuerda que si acumulas compras en 7 días distintos durante este mismo mes, ¡te regalamos una <b>comida individual GRATIS</b>! 🍔',
+                        icon: 'info',
+                        confirmButtonText: '¡Entendido!',
+                        confirmButtonColor: 'var(--color-primary)'
+                    });
+                    localStorage.setItem(currentMonthKey, 'true');
+                }, 1000);
+            }
+        }
+    }, [loyaltyStamps, activeOrders.length]);
+
+    const handleLoyaltyClick = () => {
+        if (loyaltyStamps >= 7) {
+            Swal.fire({
+                title: '¡FELICIDADES! 🏆',
+                html: 'Has completado tus 7 sellos este mes.<br><br><b>¡UNA COMIDA INDIVIDUAL GRATIS!</b><br><br><small>Comunícate por WhatsApp con el ID de tu último pedido para reclamarla.<br><br>⚠️ No incluye bebida ni adicionales, esos van por separado.</small>',
+                icon: 'success',
+                confirmButtonColor: 'var(--color-primary)'
+            });
+        } else {
+            Swal.fire({
+                title: 'Programa de Fidelidad 🍔',
+                html: `Llevas <b>${loyaltyStamps}</b> de 7 sellos este mes.<br><br>Ganas un sello por cada día distinto en que hagas un pedido completado.<br><br><i>¡Completa los 7 en el mismo mes y gana una comida individual!</i><br><br><small style="opacity:0.7">⚠️ No incluye bebida ni adicionales, esos van por separado.</small>`,
+                icon: 'question',
+                confirmButtonText: 'Genial',
+                confirmButtonColor: 'var(--color-primary)'
+            });
+        }
+    };
+    // -------------------------------------------
 
     return (
         <div className="page">
@@ -49,11 +111,11 @@ export default function OrderTracking() {
                                     Pedidos Activos
                                 </h3>
                                 {activeOrders.map((order) => {
-                                    const count = localCounts[order.id] || order.insistCount || 0;
+                                    const level = order.insistCount || 0;
                                     return (
                                         <div key={order.id} className="order-card-full" style={{ position: 'relative', overflow: 'hidden' }}>
                                             <FloatingEmojis
-                                                emoji={getInsistEmoji(count)}
+                                                emoji={getInsistEmoji(level)}
                                                 trigger={insistTriggers[order.id] || 0}
                                             />
                                             <div className="order-card-header">
@@ -72,74 +134,129 @@ export default function OrderTracking() {
                                                 <span>Total</span>
                                                 <span>${order.total?.toLocaleString('es-CO')}</span>
                                             </div>
-                                            {order.status !== 'onTheWay' && order.status !== 'ready' ? null : null}
-                                            <button
-                                                className="btn btn-sm"
-                                                onClick={() => handleInsist(order.id)}
-                                                style={{
-                                                    marginTop: '10px',
-                                                    width: '100%',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '8px',
-                                                    padding: '10px',
-                                                    fontSize: '14px',
-                                                    fontWeight: 600,
-                                                    borderRadius: '12px',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    background: count <= 3 ? 'linear-gradient(135deg, #FFF3E0, #FFE0B2)' :
-                                                        count <= 7 ? 'linear-gradient(135deg, #FFF9C4, #FFE082)' :
-                                                            count <= 12 ? 'linear-gradient(135deg, #FFCDD2, #EF9A9A)' :
-                                                                'linear-gradient(135deg, #FF5252, #D32F2F)',
-                                                    color: count > 12 ? '#fff' : '#333',
-                                                    transition: 'all 0.3s ease',
-                                                    transform: 'scale(1)',
-                                                    animation: count > 7 ? 'pulse-btn 0.5s ease' : 'none'
-                                                }}
-                                            >
-                                                <span style={{ fontSize: '20px' }}>{getInsistEmoji(count)}</span>
-                                                <span>{count === 0 ? 'Insistir' : getInsistLabel(count)}</span>
-                                                {count > 0 && <span style={{ opacity: 0.6, fontSize: '12px' }}>x{count}</span>}
-                                            </button>
+                                            {['pending', 'accepted', 'preparing', 'ready'].includes(order.status) && (
+                                                <InsistButton order={order} onInsistReal={handleInsistReal} />
+                                            )}
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
 
-                        {pastOrders.length > 0 && (
-                            <div className="orders-section">
-                                <h3 className="orders-section-title">
-                                    <span className="material-icons-round" style={{ color: 'var(--color-text-secondary)' }}>history</span>
-                                    Historial
-                                </h3>
-                                {pastOrders.map((order) => (
-                                    <div key={order.id} className="order-card-mini">
-                                        <div className="order-card-header">
-                                            <span className="order-card-id">#{order.id.slice(-6).toUpperCase()}</span>
-                                            <span className="order-status-chip" style={{ background: getStatusColor(order.status) + '20', color: getStatusColor(order.status) }}>
-                                                {getStatusLabel(order.status)}
-                                            </span>
-                                        </div>
-                                        <div className="order-card-items">
-                                            {order.items.map((item, i) => (
-                                                <span key={i}>{item.quantity}x {item.name}</span>
-                                            ))}
-                                        </div>
-                                        <div className="order-card-total">
-                                            <span>Total</span>
-                                            <span>${order.total?.toLocaleString('es-CO')}</span>
-                                        </div>
-                                    </div>
-                                ))}
+                        {/* SECCIÓN FIDELIDAD EN VEZ DEL HISTORIAL */}
+                        <div className="loyalty-card" onClick={handleLoyaltyClick}>
+                            <div className="loyalty-header">
+                                <div>
+                                    <h3 className="loyalty-title">Sellos Krusty</h3>
+                                    <p className="loyalty-subtitle">{new Date().toLocaleString('es-CO', { month: 'long' }).toUpperCase()} - Faltan {7 - loyaltyStamps} para premio</p>
+                                </div>
+                                <span className="material-icons-round" style={{ color: 'var(--color-primary)', fontSize: 28, opacity: 0.8 }}>card_membership</span>
                             </div>
-                        )}
+                            <div className="stamps-container">
+                                {[...Array(7)].map((_, index) => {
+                                    const isEarned = index < loyaltyStamps;
+                                    const isPrize = index === 6; // El septimo sello (índice 6)
+                                    return (
+                                        <div
+                                            key={index}
+                                            className={`stamp-slot ${isEarned ? 'earned' : ''} ${isEarned && isPrize ? 'free-burger' : ''}`}
+                                            title={isPrize ? "¡Hamburguesa Gratis!" : `Día de compra ${index + 1}`}
+                                        >
+                                            {isEarned && isPrize ? (
+                                                <span className="stamp-prize">🍔</span>
+                                            ) : isEarned ? (
+                                                <img src="/logo.webp" alt="Sello" className="stamp-image" />
+                                            ) : (
+                                                <span className="stamp-number">{index + 1}</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </>
                 )}
             </div>
         </div>
+    );
+}
+
+const REQUIRED_CLICKS = [7, 10, 13, 16, 20]; // 5 Niveles reducidos
+const MAX_LEVEL = 5;
+
+function InsistButton({ order, onInsistReal }) {
+    const level = order.insistCount || 0;
+    const isMax = level >= MAX_LEVEL;
+    const [clicks, setClicks] = useState(0);
+
+    useEffect(() => {
+        if (isMax || clicks === 0) return;
+        const timer = setInterval(() => {
+            setClicks(prev => Math.max(0, prev - 1));
+        }, 220); // Pierde rápidez (decay timer) - Más lento (más fácil)
+        return () => clearInterval(timer);
+    }, [clicks, isMax]);
+
+    const handleClick = () => {
+        if (isMax) {
+            Swal.fire({
+                title: '¡MAXIMA INTENSIDAD!',
+                text: 'Eres el cliente más intenso del día de hoy jeje 👑',
+                icon: 'success',
+                confirmButtonColor: 'var(--color-primary)'
+            });
+            return;
+        }
+
+        const required = REQUIRED_CLICKS[Math.min(level, REQUIRED_CLICKS.length - 1)];
+        const newClicks = clicks + 1;
+
+        if (newClicks >= required) {
+            setClicks(0);
+            onInsistReal(order.id);
+            if (level + 1 >= MAX_LEVEL) {
+                 Swal.fire({
+                    title: '¡GANASTE!',
+                    text: 'Eres el cliente más intenso del día de hoy jeje 🏆',
+                    icon: 'success',
+                    backdrop: `rgba(0,0,0,0.4) url("https://i.gifer.com/origin/d3/d3f472b06590a25cb4372ff289d81711_w200.gif") center top no-repeat`,
+                    confirmButtonColor: 'var(--color-primary)'
+                });
+            }
+        } else {
+            setClicks(newClicks);
+        }
+    };
+
+    const required = REQUIRED_CLICKS[Math.min(level, REQUIRED_CLICKS.length - 1)];
+    const progress = isMax ? 100 : Math.min(100, (clicks / required) * 100);
+    const displayLevel = Math.min(level, MAX_LEVEL);
+
+    return (
+        <button
+            className={`btn btn-sm insist-game-btn ${clicks > 0 ? 'active' : ''}`}
+            onClick={handleClick}
+            style={{
+                marginTop: '10px', width: '100%', position: 'relative', overflow: 'hidden', padding: '12px',
+                border: 'none', borderRadius: '12px', cursor: 'pointer',
+                background: displayLevel <= 1 ? '#FFF8E1' :
+                            displayLevel === 2 ? '#FFF9C4' :
+                            displayLevel === 3 ? '#FFCDD2' :
+                            displayLevel === 4 ? '#FF5252' :
+                            'linear-gradient(135deg, #FFD700, #FF8C00)',
+                color: displayLevel === 4 ? '#fff' : '#333'
+            }}
+        >
+            <div className="insist-progress-fill" style={{ 
+                width: `${progress}%`,
+                background: displayLevel === 4 || displayLevel === 5 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
+            }} />
+            <span style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', fontWeight: 700 }}>
+                <span style={{ fontSize: '20px' }}>{getInsistEmoji(displayLevel)}</span>
+                {isMax ? '¡NIVEL MÁXIMO!' : (clicks > 0 ? `¡TOCA RÁPIDO! (${clicks}/${required})` : getInsistLabel(displayLevel))}
+                {displayLevel > 0 && !isMax && <span style={{ opacity: 0.6, fontSize: '12px' }}>Nvl {displayLevel}</span>}
+            </span>
+        </button>
     );
 }
 

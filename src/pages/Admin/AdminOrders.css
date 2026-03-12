@@ -72,6 +72,19 @@
 .admin-order-card.new-order {
     border-color: var(--color-primary);
     box-shadow: 0 0 16px rgba(211, 47, 47, 0.2);
+    /* Removido cualquier background fijo que cause flasheo a blanco */
+}
+
+/* Animación de vibración para subir de nivel de intensidad */
+.shake-admin-card {
+    animation: shake-admin 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake-admin {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
 }
 
 .admin-order-header {

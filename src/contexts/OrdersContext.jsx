@@ -226,41 +226,35 @@ export function useOrders() {
     return context;
 }
 
-export function getStatusLabel(status) {
-    const labels = {
-        pending: 'Pedido recibido',
-        accepted: 'Aceptado',
-        preparing: 'En preparacion',
-        ready: 'Listo',
-        onTheWay: 'En camino',
-        delivered: 'Entregado',
-        cancelled: 'Cancelado'
-    };
-    return labels[status] || status;
-}
+export const getStatusLabel = (status) => {
+    switch (status) {
+        case 'pending': return 'Pendiente';
+        case 'preparing': return 'En Preparación';
+        case 'onTheWay': return 'En Camino';
+        case 'delivered': return 'Entregado';
+        case 'cancelled': return 'Cancelado';
+        default: return status;
+    }
+};
 
-export function getStatusIcon(status) {
-    const icons = {
-        pending: 'receipt_long',
-        accepted: 'check_circle',
-        preparing: 'restaurant',
-        ready: 'inventory_2',
-        onTheWay: 'delivery_dining',
-        delivered: 'done_all',
-        cancelled: 'cancel'
-    };
-    return icons[status] || 'help';
-}
+export const getStatusColor = (status) => {
+    switch (status) {
+        case 'pending': return '#FFB74D';
+        case 'preparing': return '#4FC3F7';
+        case 'onTheWay': return '#BA68C8';
+        case 'delivered': return '#81C784';
+        case 'cancelled': return '#E57373';
+        default: return '#9E9E9E';
+    }
+};
 
-export function getStatusColor(status) {
-    const colors = {
-        pending: '#FB8C00',
-        accepted: '#1E88E5',
-        preparing: '#8E24AA',
-        ready: '#43A047',
-        onTheWay: '#00ACC1',
-        delivered: '#43A047',
-        cancelled: '#E53935'
-    };
-    return colors[status] || '#757575';
-}
+export const getStatusIcon = (status) => {
+    switch (status) {
+        case 'pending': return 'pending';
+        case 'preparing': return 'restaurant';
+        case 'onTheWay': return 'two_wheeler';
+        case 'delivered': return 'done_all';
+        case 'cancelled': return 'cancel';
+        default: return 'help';
+    }
+};

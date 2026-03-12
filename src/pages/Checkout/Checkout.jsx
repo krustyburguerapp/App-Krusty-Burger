@@ -54,8 +54,8 @@ export default function Checkout() {
     const validate = () => {
         const errs = {};
         if (!phone.trim() || phone.replace(/\D/g, '').length < 10) errs.phone = 'Ingresa un número de WhatsApp válido (mínimo 10 dígitos)';
-        if (deliveryType === 'delivery' && !address.trim() && !locationUrl) {
-            errs.address = 'Ingresa tu dirección de entrega o adjunta tu ubicación GPS';
+        if (deliveryType === 'delivery' && (!address.trim() || !locationUrl)) {
+            errs.address = 'Debes ingresar tu dirección escrita y adjuntar tu ubicación GPS';
         }
 
         if (!paymentMethod) {
@@ -192,7 +192,7 @@ export default function Checkout() {
                                     <div className="checkout-data-row">
                                         <span className="material-icons-round">location_on</span>
                                         <span>
-                                            {userData.address || 'Ubicación GPS adjuntada'}
+                                            {userData.address}
                                             {userData.locationUrl && (
                                                 <a href={userData.locationUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '6px', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', fontWeight: 'bold' }}>
                                                     <span className="material-icons-round" style={{ fontSize: 12 }}>map</span>Mapa
@@ -220,20 +220,20 @@ export default function Checkout() {
                             {deliveryType === 'delivery' && (
                                 <>
                                     <div className="input-group">
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                            <label htmlFor="address" style={{ marginBottom: 0 }}>Dirección</label>
-                                            <button
-                                                type="button"
-                                                className="btn btn-ghost btn-sm"
-                                                onClick={handleGetLocation}
-                                                disabled={loadingLocation}
-                                                style={{ padding: '2px 8px', height: 'auto', fontSize: '12px', minHeight: 'unset', color: 'var(--color-primary)' }}
-                                            >
-                                                <span className="material-icons-round" style={{ fontSize: 14 }}>{loadingLocation ? 'sync' : 'my_location'}</span>
-                                                {loadingLocation ? 'Obteniendo...' : 'Usar mi ubicación GPS'}
-                                            </button>
-                                        </div>
+                                        <label htmlFor="address" style={{ marginBottom: '4px' }}>Dirección</label>
                                         <input id="address" type="text" className={`input-field ${errors.address ? 'input-error' : ''}`} placeholder="Calle, número, barrio" value={address} onChange={(e) => setAddress(e.target.value)} />
+                                        
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline btn-sm"
+                                            onClick={handleGetLocation}
+                                            disabled={loadingLocation}
+                                            style={{ marginTop: '8px', padding: '10px', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px' }}
+                                        >
+                                            <span className="material-icons-round" style={{ fontSize: 20 }}>{loadingLocation ? 'sync' : 'my_location'}</span>
+                                            {loadingLocation ? 'Obteniendo Ubicación...' : 'Usar mi ubicación GPS (Obligatorio)'}
+                                        </button>
+
                                         {errors.address && <span className="input-error-text">{errors.address}</span>}
                                         {locationUrl && (
                                             <small style={{ color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>

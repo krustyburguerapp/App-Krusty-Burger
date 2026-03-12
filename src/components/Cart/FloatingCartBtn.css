@@ -1,6 +1,6 @@
 .floating-cart-btn {
     position: fixed;
-    bottom: calc(var(--bottom-nav-height) + var(--spacing-lg));
+    bottom: 88px; /* Forzado a 88px para evitar que se escuda bajo el Tab Bar (64px) */
     right: var(--spacing-md);
     width: 56px;
     height: 56px;
@@ -11,15 +11,39 @@
     align-items: center;
     justify-content: center;
     box-shadow: var(--shadow-glow-primary);
-    z-index: var(--z-sticky);
+    z-index: var(--z-modal); /* Subimos la prioridad sobre el Bottom Nav */
     cursor: pointer;
     transition: all var(--transition-fast) var(--ease-bounce);
-    animation: scaleIn var(--transition-normal) var(--ease-bounce);
+    animation: scaleIn var(--transition-normal) var(--ease-bounce), attentionCart 4s infinite 1s;
+}
+
+@keyframes attentionCart {
+    0%, 15%, 100% {
+        transform: scale(1) rotate(0deg);
+        box-shadow: var(--shadow-glow-primary);
+    }
+    3% {
+        transform: scale(1.1) rotate(-8deg);
+        box-shadow: 0 8px 28px rgba(211, 47, 47, 0.6);
+    }
+    6% {
+        transform: scale(1.1) rotate(8deg);
+        box-shadow: 0 8px 28px rgba(211, 47, 47, 0.6);
+    }
+    9% {
+        transform: scale(1.1) rotate(-8deg);
+        box-shadow: 0 8px 28px rgba(211, 47, 47, 0.6);
+    }
+    12% {
+        transform: scale(1.1) rotate(8deg);
+        box-shadow: 0 8px 28px rgba(211, 47, 47, 0.6);
+    }
 }
 
 .floating-cart-btn:hover {
     transform: scale(1.05) translateY(-2px);
     box-shadow: 0 6px 28px rgba(211, 47, 47, 0.4);
+    animation: none; /* Detenemos la animación si el usuario ya lo está viendo/pasando el cursor */
 }
 
 .floating-cart-btn:active {
@@ -50,7 +74,7 @@
 
 @media (min-width: 768px) {
     .floating-cart-btn {
-        bottom: var(--spacing-xl);
+        bottom: 96px; /* Still above bottom nav on tablets */
         right: var(--spacing-xl);
         width: 64px;
         height: 64px;
@@ -64,5 +88,11 @@
 
     .floating-cart-btn .material-icons-round {
         font-size: 28px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .floating-cart-btn {
+        bottom: var(--spacing-xl); /* Desktop: Bottom nav is hidden, so we can place it lower */
     }
 }

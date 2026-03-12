@@ -27,7 +27,7 @@ export function generateOrderWhatsAppURL(order) {
     return `https://wa.me/${STORE_PHONE}?text=${message}`;
 }
 
-export function generateAdminWhatsAppURL(order) {
+export function generateAdminWhatsAppURL(order, forceInitialMessage = false) {
     const cleanPhone = order.userPhone.replace(/\D/g, '');
     const formattedPhone = cleanPhone.startsWith('57') ? cleanPhone : `57${cleanPhone}`;
 
@@ -41,7 +41,7 @@ export function generateAdminWhatsAppURL(order) {
 
     let template = '';
 
-    if (order.status === 'pending' || order.status === 'accepted') {
+    if (forceInitialMessage || order.status === 'pending' || order.status === 'accepted' || order.status === 'preparing') {
         const notes = order.orderNotes ? `\n_Notas: ${order.orderNotes}_\n` : '';
 
         if (order.paymentMethod === 'efectivo') {
