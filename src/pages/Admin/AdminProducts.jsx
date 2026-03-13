@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useProducts } from '../../contexts/ProductsContext';
 import { CATEGORIES, INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import Modal from '../../components/UI/Modal';
@@ -9,17 +9,17 @@ import './AdminProducts.css';
 
 export default function AdminProducts() {
     const { products, loading, addProduct, updateProduct, deleteProduct, toggleAvailability } = useProducts();
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
-    const [imageFile, setImageFile] = useState(null);
-    const [saving, setSaving] = useState(false);
-    const [form, setForm] = useState({
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [editingProduct, setEditingProduct] = React.useState(null);
+    const [imageFile, setImageFile] = React.useState(null);
+    const [saving, setSaving] = React.useState(false);
+    const [form, setForm] = React.useState({
         name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: 0
     });
 
     // Filtros para el panel de organizador
-    const [filterCategory, setFilterCategory] = useState('all');
-    const [filterSubCategory, setFilterSubCategory] = useState('all');
+    const [filterCategory, setFilterCategory] = React.useState('all');
+    const [filterSubCategory, setFilterSubCategory] = React.useState('all');
 
     // Productos filtrados según el modo organizador
     const filteredProducts = products.filter(p => {

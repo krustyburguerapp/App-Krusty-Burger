@@ -3,10 +3,14 @@ import { useLocation } from 'react-router-dom';
 import './FloatingCartBtn.css';
 
 export default function FloatingCartBtn() {
-    const { totalItems, setIsOpen } = useCart();
+    const { totalItems, isOpen, setIsOpen } = useCart();
     const location = useLocation();
 
-    if (totalItems === 0 || location.pathname === '/checkout') return null;
+    // No mostrar si:
+    // 1. No hay items en el carrito
+    // 2. El carrito ya está abierto
+    // 3. Está en la página de checkout
+    if (totalItems === 0 || isOpen || location.pathname === '/checkout') return null;
 
     return (
         <button

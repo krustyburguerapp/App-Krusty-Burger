@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { db, isDemoMode } from '../config/firebase';
+import { db, isDemoMode, ADMIN_EMAIL } from '../config/firebase';
 import {
     collection, onSnapshot, doc,
-    addDoc, updateDoc, serverTimestamp, increment
+    addDoc, updateDoc, serverTimestamp, increment, getDoc, deleteDoc
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
 import { useAuth } from './AuthContext';
+import { addStamp, getUserStamps } from '../utils/loyaltySystem';
 
 const OrdersContext = createContext(null);
 
@@ -134,7 +135,7 @@ export function OrdersProvider({ children }) {
         }
     };
 
-    const updateOrderStatus = async (orderId, newStatus, note = '') => {
+    const updateOrderStatus = async (orderId, newStatus, note = '', metadata = {}) => {
         if (isDemoMode) {
             const currentOrders = JSON.parse(localStorage.getItem('demoKrustyOrders') || '[]');
             const updatedOrders = currentOrders.map(o => {
@@ -161,11 +162,13 @@ export function OrdersProvider({ children }) {
 
         try {
             const orderRef = doc(db, 'orders', orderId);
+            const order = orders.find((o) => o.id === orderId);
+            
             const updateData = {
                 status: newStatus,
                 isNew: false,
-                statusHistory: orders.find((o) => o.id === orderId)?.statusHistory
-                    ? [...orders.find((o) => o.id === orderId).statusHistory, {
+                statusHistory: order?.statusHistory
+                    ? [...order.statusHistory, {
                         status: newStatus,
                         timestamp: new Date().toISOString(),
                         note: note || getStatusLabel(newStatus)
@@ -173,12 +176,38 @@ export function OrdersProvider({ children }) {
                     : [{ status: newStatus, timestamp: new Date().toISOString(), note: note || getStatusLabel(newStatus) }],
                 updatedAt: serverTimestamp()
             };
-            if (newStatus === 'delivered') {
-                const order = orders.find((o) => o.id === orderId);
-                if (order && order.createdAt) {
-                    updateData.actualTime = calculateActualTime(order.createdAt);
-                }
+
+            // Guardar tiempo de preparación si se proporciona
+            if (metadata.preparationTime !== undefined) {
+                updateData.preparationTime = metadata.preparationTime;
             }
+            
+            if (newStatus === 'delivered' && order && order.createdAt) {
+                updateData.actualTime = calculateActualTime(order.createdAt);
+                
+                // Actualizar estado del pedido primero
+                await updateDoc(orderRef, updateData);
+                
+                // Agregar sello de fidelidad al usuario
+                const userId = order.userId;
+                if (userId) {
+                    const stampResult = await addStamp(userId, order.createdAt);
+                    
+                    // Si es un sello nuevo y completa los 7, notificar al admin
+                    if (stampResult.success && stampResult.isNewStamp && stampResult.stamps >= 7) {
+                        // Notificar a todos los admins (en una implementación real, se podría usar Cloud Messaging)
+                        console.log('🏆 USUARIO COMPLETÓ 7 SELLOS - PREMIO LISTO', {
+                            userId,
+                            orderId,
+                            userName: order.userName,
+                            userPhone: order.userPhone
+                        });
+                    }
+                }
+                
+                return { success: true, stampAdded: stampResult };
+            }
+            
             await updateDoc(orderRef, updateData);
             return { success: true };
         } catch (error) {
@@ -213,8 +242,26 @@ export function OrdersProvider({ children }) {
         }
     };
 
+    const deleteOrder = async (orderId) => {
+        if (isDemoMode) {
+            const currentOrders = JSON.parse(localStorage.getItem('demoKrustyOrders') || '[]');
+            const updatedOrders = currentOrders.filter(o => o.id !== orderId);
+            localStorage.setItem('demoKrustyOrders', JSON.stringify(updatedOrders));
+            setOrders(isAdmin ? updatedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) : updatedOrders.filter(o => o.userId === userId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+            return { success: true };
+        }
+
+        try {
+            const orderRef = doc(db, 'orders', orderId);
+            await deleteDoc(orderRef);
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    };
+
     return (
-        <OrdersContext.Provider value={{ orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen, sendInsist }}>
+        <OrdersContext.Provider value={{ orders, loading, error, newOrdersCount, createOrder, updateOrderStatus, markAsSeen, sendInsist, deleteOrder }}>
             {children}
         </OrdersContext.Provider>
     );

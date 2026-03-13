@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrders } from '../../contexts/OrdersContext';
 import { useNavigate } from 'react-router-dom';
-import { db } from '../../config/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import Spinner from '../../components/UI/Spinner';
 import './AdminDashboard.css';
 
@@ -11,47 +9,6 @@ export default function AdminDashboard() {
     const { user, userData } = useAuth();
     const { orders, loading, newOrdersCount } = useOrders();
     const navigate = useNavigate();
-
-    const [storeCoords, setStoreCoords] = useState(null);
-    const [gpsLoading, setGpsLoading] = useState(false);
-    const [gpsMsg, setGpsMsg] = useState('');
-
-    useEffect(() => {
-        const loadCoords = async () => {
-            try {
-                const snap = await getDoc(doc(db, 'config', 'storeLocation'));
-                if (snap.exists()) setStoreCoords(snap.data());
-            } catch (e) { console.error('Error cargando coordenadas:', e); }
-        };
-        loadCoords();
-    }, []);
-
-    const handleCaptureGPS = () => {
-        if (!navigator.geolocation) {
-            setGpsMsg('Tu navegador no soporta GPS');
-            return;
-        }
-        setGpsLoading(true);
-        setGpsMsg('Obteniendo ubicacion...');
-        navigator.geolocation.getCurrentPosition(
-            async (pos) => {
-                const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude, updatedAt: new Date().toISOString() };
-                try {
-                    await setDoc(doc(db, 'config', 'storeLocation'), coords);
-                    setStoreCoords(coords);
-                    setGpsMsg('Coordenadas guardadas!');
-                } catch (e) {
-                    setGpsMsg('Error guardando: ' + e.message);
-                }
-                setGpsLoading(false);
-            },
-            (err) => {
-                setGpsMsg('Error GPS: ' + err.message);
-                setGpsLoading(false);
-            },
-            { enableHighAccuracy: true, timeout: 15000 }
-        );
-    };
 
     if (loading) return <div className="page admin-page"><Spinner size="lg" /></div>;
 
@@ -111,6 +68,10 @@ export default function AdminDashboard() {
                             <span className="material-icons-round">inventory_2</span>
                             <span>Gestionar Productos</span>
                         </button>
+                        <button className="admin-action-btn" onClick={() => navigate('/admin/loyalty')}>
+                            <span className="material-icons-round">emoji_events</span>
+                            <span>Fidelización</span>
+                        </button>
                         <button className="admin-action-btn" onClick={() => navigate('/menu')}>
                             <span className="material-icons-round">restaurant_menu</span>
                             <span>Ver Menu</span>
@@ -120,36 +81,6 @@ export default function AdminDashboard() {
                             <span>Mi Perfil</span>
                         </button>
                     </div>
-                </div>
-
-                {/* Seccion GPS del Local */}
-                <div className="admin-quick-actions" style={{ marginTop: '16px' }}>
-                    <h3>Ubicacion del Local</h3>
-                    <button
-                        className="admin-action-btn"
-                        onClick={handleCaptureGPS}
-                        disabled={gpsLoading}
-                        style={{ width: '100%', justifyContent: 'center', padding: '14px', background: gpsLoading ? 'var(--color-surface-alt)' : '' }}
-                    >
-                        <span className="material-icons-round">{gpsLoading ? 'hourglass_top' : 'my_location'}</span>
-                        <span>{gpsLoading ? 'Calculando...' : 'Calcular coordenadas del local'}</span>
-                    </button>
-                    {gpsMsg && <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '13px', color: 'var(--color-text-secondary)' }}>{gpsMsg}</p>}
-                    {storeCoords && (
-                        <div style={{ marginTop: '12px', padding: '12px 16px', background: 'var(--color-surface-alt)', borderRadius: '12px', fontSize: '13px' }}>
-                            <p style={{ marginBottom: '6px' }}><strong>Lat:</strong> {storeCoords.lat}</p>
-                            <p style={{ marginBottom: '6px' }}><strong>Lng:</strong> {storeCoords.lng}</p>
-                            <a
-                                href={`https://maps.google.com/?q=${storeCoords.lat},${storeCoords.lng}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: 'var(--color-primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                            >
-                                <span className="material-icons-round" style={{ fontSize: '16px' }}>map</span>
-                                Ver en Google Maps
-                            </a>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

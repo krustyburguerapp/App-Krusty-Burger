@@ -6,17 +6,35 @@ import OrderTracker from '../../components/Order/OrderTracker';
 import FloatingEmojis, { getInsistEmoji, getInsistLabel } from '../../components/UI/FloatingEmojis';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
+import { getUserStamps, hasUserClaimedPrize } from '../../utils/loyaltySystem';
 import './OrderTracking.css';
 
 export default function OrderTracking() {
     const { user } = useAuth();
     const { orders, loading, error, sendInsist } = useOrders();
     const [insistTriggers, setInsistTriggers] = useState({});
+    const [loyaltyStamps, setLoyaltyStamps] = useState(0);
+    const [prizeClaimed, setPrizeClaimed] = useState(false);
+    const [loadingLoyalty, setLoadingLoyalty] = useState(true);
 
     const handleInsistReal = async (orderId) => {
         setInsistTriggers(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
         await sendInsist(orderId);
     };
+
+    // Cargar sellos del usuario desde Firestore
+    useEffect(() => {
+        const loadLoyalty = async () => {
+            if (!user) return;
+            const stampData = await getUserStamps(user.uid);
+            if (stampData) {
+                setLoyaltyStamps(stampData.stamps || 0);
+                setPrizeClaimed(stampData.prizeClaimed || false);
+            }
+            setLoadingLoyalty(false);
+        };
+        loadLoyalty();
+    }, [user]);
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
 
@@ -29,42 +47,19 @@ export default function OrderTracking() {
     );
 
     const activeOrders = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status));
-    const pastOrders = orders.filter((o) => o.status === 'delivered'); // Solo las entregadas sirven para fidelidad
-
-    // --- LÓGICA DE FIDELIDAD (Sellos Krusty) ---
-    const calculateLoyaltyDays = () => {
-        const today = new Date();
-        const currentMonth = today.getMonth();
-        const currentYear = today.getFullYear();
-        
-        const uniqueDays = new Set();
-        
-        pastOrders.forEach(order => {
-            const dateStr = order.createdAt;
-            if (dateStr) {
-                const dateObj = dateStr.toDate ? dateStr.toDate() : new Date(dateStr);
-                if (dateObj.getMonth() === currentMonth && dateObj.getFullYear() === currentYear) {
-                    uniqueDays.add(dateObj.getDate()); // Agrega el día del mes al Set (evita duplicados)
-                }
-            }
-        });
-        
-        return Math.min(uniqueDays.size, 7); // Maximo 7 sellos visuales
-    };
-
-    const loyaltyStamps = calculateLoyaltyDays();
+    const pastOrders = orders.filter((o) => o.status === 'delivered');
 
     useEffect(() => {
         // Mostrar popup si la persona tiene exactamente 1 sello ganado (su primer pedido del mes)
-        if (loyaltyStamps >= 1 && activeOrders.length === 0) {
+        if (loyaltyStamps >= 1 && activeOrders.length === 0 && !prizeClaimed) {
             const currentMonthKey = `krusty_loyalty_popup_${new Date().getMonth()}_${new Date().getFullYear()}`;
             const hasSeenPopup = localStorage.getItem(currentMonthKey);
 
             if (!hasSeenPopup && loyaltyStamps < 7) {
                 setTimeout(() => {
                     Swal.fire({
-                        title: '¡Llevas 1 Sello Krusty!',
-                        html: 'Recuerda que si acumulas compras en 7 días distintos durante este mismo mes, ¡te regalamos una <b>comida individual GRATIS</b>! 🍔',
+                        title: '¡Llevas 1 Sello Krusty! 🎯',
+                        html: 'Recuerda que si acumulas compras en 7 días distintos durante este mismo mes, ¡te regalamos una <b>comida individual GRATIS + Bebida pequeña</b>! 🍔🥤',
                         icon: 'info',
                         confirmButtonText: '¡Entendido!',
                         confirmButtonColor: 'var(--color-primary)'
@@ -73,20 +68,40 @@ export default function OrderTracking() {
                 }, 1000);
             }
         }
-    }, [loyaltyStamps, activeOrders.length]);
+    }, [loyaltyStamps, activeOrders.length, prizeClaimed]);
 
     const handleLoyaltyClick = () => {
-        if (loyaltyStamps >= 7) {
+        if (prizeClaimed) {
             Swal.fire({
-                title: '¡FELICIDADES! 🏆',
-                html: 'Has completado tus 7 sellos este mes.<br><br><b>¡UNA COMIDA INDIVIDUAL GRATIS!</b><br><br><small>Comunícate por WhatsApp con el ID de tu último pedido para reclamarla.<br><br>⚠️ No incluye bebida ni adicionales, esos van por separado.</small>',
+                title: 'Premio ya Reclamado 🎉',
+                html: 'Ya reclamaste tu premio este mes. ¡Pero puedes seguir acumulando para el próximo mes!',
                 icon: 'success',
                 confirmButtonColor: 'var(--color-primary)'
+            });
+        } else if (loyaltyStamps >= 7) {
+            Swal.fire({
+                title: '¡FELICIDADES! 🏆',
+                html: 'Has completado tus 7 sellos este mes.<br><br><b>¡UNA COMIDA INDIVIDUAL GRATIS + BEBIDA PEQUEÑA!</b><br><br><small>Comunícate por WhatsApp con el ID de tu último pedido para reclamarla.<br><br>⚠️ Los adicionales van por separado.</small>',
+                icon: 'success',
+                confirmButtonText: 'Reclamar mi comida gratis',
+                confirmButtonColor: 'var(--color-primary)',
+                showCancelButton: true,
+                cancelButtonText: 'Cerrar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Obtener email del usuario
+                    const userEmail = user?.email || 'no-disponible';
+                    const lastOrder = orders[0]?.id || 'no-disponible';
+                    const message = `Hola,%20completé%20mis%207%20sellos%20Krusty%20y%20quiero%20reclamar%20mi%20comida%20gratis.%0A%0A📧%20Mi%20correo:%20${userEmail}%0A📋%20ID%20último%20pedido:%20${lastOrder}`;
+                    
+                    // Abrir WhatsApp para reclamar
+                    window.open(`https://wa.me/573025712968?text=${message}`, '_blank');
+                }
             });
         } else {
             Swal.fire({
                 title: 'Programa de Fidelidad 🍔',
-                html: `Llevas <b>${loyaltyStamps}</b> de 7 sellos este mes.<br><br>Ganas un sello por cada día distinto en que hagas un pedido completado.<br><br><i>¡Completa los 7 en el mismo mes y gana una comida individual!</i><br><br><small style="opacity:0.7">⚠️ No incluye bebida ni adicionales, esos van por separado.</small>`,
+                html: `Llevas <b>${loyaltyStamps}</b> de 7 sellos este mes.<br><br>Ganas un sello por cada día distinto en que hagas un pedido completado.<br><br><i>¡Completa los 7 en el mismo mes y <b>gana una comida individual GRATIS + bebida pequeña</b>!</i><br><br><small style="opacity:0.7">⚠️ Los adicionales van por separado.</small>`,
                 icon: 'question',
                 confirmButtonText: 'Genial',
                 confirmButtonColor: 'var(--color-primary)'
@@ -148,7 +163,13 @@ export default function OrderTracking() {
                             <div className="loyalty-header">
                                 <div>
                                     <h3 className="loyalty-title">Sellos Krusty</h3>
-                                    <p className="loyalty-subtitle">{new Date().toLocaleString('es-CO', { month: 'long' }).toUpperCase()} - Faltan {7 - loyaltyStamps} para premio</p>
+                                    <p className="loyalty-subtitle">
+                                        {loyaltyStamps >= 7 
+                                            ? '¡Completaste los 7 sellos!' 
+                                            : loyaltyStamps === 6
+                                                ? '¡Falta 1 sello para tu comida gratis!'
+                                                : `Faltan ${7 - loyaltyStamps} sellos para tu comida gratis`}
+                                    </p>
                                 </div>
                                 <span className="material-icons-round" style={{ color: 'var(--color-primary)', fontSize: 28, opacity: 0.8 }}>card_membership</span>
                             </div>

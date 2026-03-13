@@ -273,41 +273,122 @@
     font-size: 14px;
 }
 
-/* Footer fijo */
+/* Footer fijo - Diseño profesional mejorado */
 .pb-footer {
     position: sticky;
     bottom: calc(-1 * var(--spacing-lg, 24px));
     margin-left: calc(-1 * var(--spacing-lg, 24px));
     margin-right: calc(-1 * var(--spacing-lg, 24px));
     margin-bottom: calc(-1 * var(--spacing-lg, 24px));
-    padding: 16px var(--spacing-lg, 24px) var(--spacing-lg, 24px) var(--spacing-lg, 24px);
-    background: var(--color-bg-card, #fff);
-    border-top: 1px solid var(--color-border);
-    display: flex;
+    padding: 20px var(--spacing-lg, 24px) var(--spacing-lg, 24px) var(--spacing-lg, 24px);
+    background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+    border-top: 2px solid var(--color-border);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px;
     align-items: center;
-    justify-content: space-between;
     z-index: 10;
     margin-top: 24px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .pb-footer-total {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 16px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .pb-footer-total span:first-child {
-    font-size: 13px;
+    font-size: 12px;
     color: var(--color-text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
 }
 
 .pb-footer-price {
-    font-size: 1.4rem;
+    font-size: 1.6rem;
     font-weight: 800;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+/* Botones del footer */
+.pb-footer .btn {
+    min-width: 120px;
+    padding: 12px 20px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.pb-footer .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+}
+
+.pb-footer .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(211, 47, 47, 0.4);
+}
+
+.pb-footer .btn-outline {
+    border: 2px solid var(--color-border);
+    background: white;
     color: var(--color-text);
 }
 
+.pb-footer .btn-outline:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background: rgba(211, 47, 47, 0.05);
+}
+
+/* Responsive para móvil */
 @media (max-width: 480px) {
     .pb-grid {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .pb-footer {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .pb-footer-total {
+        order: 1;
+        align-items: center;
+        padding: 10px 14px;
+    }
+    
+    .pb-footer-total span:first-child {
+        font-size: 11px;
+    }
+    
+    .pb-footer-price {
+        font-size: 1.4rem;
+    }
+    
+    .pb-footer .btn {
+        order: 2;
+        width: 100%;
+        padding: 14px 18px;
+        font-size: 15px;
+    }
+    
+    /* En móvil, el botón "Atrás" va arriba del total */
+    .pb-footer .btn-outline {
+        order: 0;
     }
 }

@@ -1,5 +1,5 @@
 const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YVoGAACA' +
-    'gICAgICAgICAgICAgICAgICAgIB/f39+fn5+fn5+fn19fHx7e3t6enl5eXh4' +
+    'gICAgICAgICAgICAgICAgICAgICAgICAgIB/f39+fn5+fn5+fn19fHx7e3t6enl5eXh4' +
     'eHd3d3Z2dnV1dXR0dHNzc3JycnFxcXBwb29vbm5ubW1tbGxsa2tramppampq' +
     'aWlpaGhoZ2dnaGhoaWlpa2tra21tbm9vcHBxcnJzc3R1dXZ3d3h4eXp6e3x8' +
     'fX5+f4CAgYGCg4OEhYWGh4eIiomKi4yMjY6Oj5CQkZKSk5SUlZWWl5eYmZma' +
@@ -30,6 +30,112 @@ export function playNotificationSound() {
         /* Silently fail if audio is not supported */
     }
 }
+
+// ============================================================================
+// ALARMA PARA NUEVOS PEDIDOS - MP3 "Los Simpson"
+// ============================================================================
+
+let alarmAudio = null;
+let audioContext = null;
+let isAlarmRunning = false;
+let hasUserInteracted = false;
+let alarmPending = false;
+
+// Inicializar el contexto de audio con la primera interacción del usuario
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    hasUserInteracted = true;
+    
+    // Si había una alarma pendiente, iniciarla ahora
+    if (alarmPending) {
+        alarmPending = false;
+        playAlarm();
+    }
+}
+
+// Escuchar clicks en toda la página para inicializar el audio
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', initAudioContext, { capture: true });
+    document.addEventListener('keydown', initAudioContext, { capture: true });
+}
+
+// Función interna para reproducir la alarma
+function playAlarm() {
+    if (!alarmAudio) {
+        // Crear elemento de audio para el MP3
+        alarmAudio = new Audio('/alarm-sound.mp3');
+        alarmAudio.loop = true;
+        alarmAudio.volume = 1;
+        alarmAudio.preload = 'auto';
+        
+        // Manejar errores
+        alarmAudio.addEventListener('error', (e) => {
+            console.error('❌ Error cargando MP3:', e);
+        });
+    }
+    
+    // Intentar reproducir
+    alarmAudio.play().then(() => {
+        console.log('🎵 Reproduciendo: Los Simpson - Intro.mp3');
+    }).catch((err) => {
+        console.warn('⚠️ No se pudo reproducir el MP3:', err);
+    });
+}
+
+export function startOrderAlarm() {
+    try {
+        // Si ya está sonando, no hacer nada
+        if (isAlarmRunning) {
+            return;
+        }
+        
+        isAlarmRunning = true;
+        console.log('🔔 Iniciando alarma de pedido...');
+        
+        // Si el usuario ya interactuó, reproducir inmediatamente
+        if (hasUserInteracted) {
+            playAlarm();
+        } else {
+            // Si no, marcar como pendiente para cuando interactúe
+            console.log('⏳ Esperando interacción del usuario para reproducir...');
+            alarmPending = true;
+        }
+        
+    } catch (err) {
+        console.error('Error en startOrderAlarm:', err);
+    }
+}
+
+export function stopOrderAlarm() {
+    try {
+        console.log('⏹️ Deteniendo alarma...');
+        
+        isAlarmRunning = false;
+        
+        // Detener y limpiar audio
+        if (alarmAudio) {
+            alarmAudio.pause();
+            alarmAudio.currentTime = 0;
+            alarmAudio = null;
+        }
+        
+    } catch (err) {
+        console.error('Error en stopOrderAlarm:', err);
+    }
+}
+
+export function isAlarmPlaying() {
+    return isAlarmRunning && alarmAudio !== null && !alarmAudio.paused;
+}
+
+// ============================================================================
+// TOAST NOTIFICATIONS
+// ============================================================================
 
 let toastContainer = null;
 
