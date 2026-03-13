@@ -23,6 +23,16 @@ export default function AdminLoyalty() {
     // Debounce para la búsqueda
     const searchTimeoutRef = useRef(null);
 
+    // Función para recargar la lista de usuarios (después de agregar/reiniciar sello)
+    const loadUsersStamps = async () => {
+        if (searchTerm && searchTerm.trim().length >= 3) {
+            setSearching(true);
+            const results = await searchUsers(searchTerm);
+            setUsersStamps(results);
+            setSearching(false);
+        }
+    };
+
     const handleSearch = async (term) => {
         setSearchTerm(term);
         
@@ -59,35 +69,54 @@ export default function AdminLoyalty() {
 
     const handleAddStamp = async () => {
         if (!selectedUser) return;
-        
+
+        console.log('🔘 [AdminLoyalty] Intentando agregar sello manual:', {
+            userId: selectedUser.userId,
+            userName: selectedUser.userName,
+            currentStamps: selectedUser.stamps,
+            note
+        });
+
         setActionLoading(true);
         const result = await addManualStamp(selectedUser.userId, user.uid, note || 'Sello asignado por admin');
-        
+
+        console.log('📍 [AdminLoyalty] Resultado de addManualStamp:', result);
         setActionLoading(false);
+
         if (result.success) {
-            showToast(`Sello agregado. Total: ${result.stamps}/7`, 'success');
+            showToast(`✅ Sello agregado. Total: ${result.stamps}/7`, 'success');
             setModalOpen(false);
             setNote('');
+            // Recargar la lista de usuarios
             loadUsersStamps();
         } else {
-            showToast(result.error || 'Error al agregar sello', 'error');
+            showToast(`❌ Error: ${result.error || 'Error al agregar sello'}`, 'error');
         }
     };
 
     const handleResetStamps = async () => {
         if (!selectedUser) return;
-        
+
+        console.log('🔘 [AdminLoyalty] Intentando reiniciar sellos:', {
+            userId: selectedUser.userId,
+            userName: selectedUser.userName,
+            currentStamps: selectedUser.stamps,
+            note
+        });
+
         setActionLoading(true);
         const result = await resetUserStamps(selectedUser.userId, user.uid, note || 'Premio entregado - reinicio de sellos');
-        
+
+        console.log('📍 [AdminLoyalty] Resultado de resetUserStamps:', result);
         setActionLoading(false);
+
         if (result.success) {
-            showToast('Sellos reiniciados correctamente', 'success');
+            showToast('✅ Sellos reiniciados correctamente', 'success');
             setResetModalOpen(false);
             setNote('');
             loadUsersStamps();
         } else {
-            showToast(result.error || 'Error al reiniciar sellos', 'error');
+            showToast(`❌ Error: ${result.error || 'Error al reiniciar sellos'}`, 'error');
         }
     };
 

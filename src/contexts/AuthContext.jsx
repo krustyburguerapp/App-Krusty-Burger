@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider, db, ADMIN_EMAIL, isDemoMode } from '../config/firebase';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 const AuthContext = createContext(null);
 
@@ -93,6 +93,22 @@ export function AuthProvider({ children }) {
 
                             if (userDoc.exists()) {
                                 const serverData = userDoc.data();
+                                
+                                // 🔄 SINCRONIZAR EMAIL DE GOOGLE AUTOMÁTICAMENTE
+                                // Si el email de Google es diferente al guardado, actualizarlo
+                                if (firebaseUser.email && serverData.email !== firebaseUser.email) {
+                                    console.log('📧 [Auth] Actualizando email de Google:', {
+                                        old: serverData.email,
+                                        new: firebaseUser.email
+                                    });
+                                    const userDocRef = doc(db, 'users', firebaseUser.uid);
+                                    await updateDoc(userDocRef, {
+                                        email: firebaseUser.email,
+                                        emailUpdatedAt: serverTimestamp()
+                                    });
+                                    serverData.email = firebaseUser.email;
+                                }
+                                
                                 setUserData(enrichUserData(serverData)); // Actualiza datos silenciamente si el caché era viejo
                                 if (!userDataFromCache) setLoading(false);
                             } else {

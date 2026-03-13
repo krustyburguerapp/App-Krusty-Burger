@@ -184,15 +184,23 @@ export function OrdersProvider({ children }) {
             
             if (newStatus === 'delivered' && order && order.createdAt) {
                 updateData.actualTime = calculateActualTime(order.createdAt);
-                
+
                 // Actualizar estado del pedido primero
                 await updateDoc(orderRef, updateData);
-                
+
                 // Agregar sello de fidelidad al usuario
                 const userId = order.userId;
                 if (userId) {
+                    console.log('🎯 [OrdersContext] Intentando agregar sello por pedido delivered:', {
+                        userId,
+                        orderId: order.id,
+                        createdAt: order.createdAt
+                    });
+
                     const stampResult = await addStamp(userId, order.createdAt);
-                    
+
+                    console.log('📍 [OrdersContext] Resultado de addStamp:', stampResult);
+
                     // Si es un sello nuevo y completa los 7, notificar al admin
                     if (stampResult.success && stampResult.isNewStamp && stampResult.stamps >= 7) {
                         // Notificar a todos los admins (en una implementación real, se podría usar Cloud Messaging)
@@ -202,9 +210,16 @@ export function OrdersProvider({ children }) {
                             userName: order.userName,
                             userPhone: order.userPhone
                         });
+                    } else if (stampResult.success && stampResult.isNewStamp) {
+                        console.log('✅ [OrdersContext] Sello agregado correctamente:', {
+                            userId,
+                            totalStamps: stampResult.stamps
+                        });
+                    } else if (!stampResult.success) {
+                        console.error('❌ [OrdersContext] Error al agregar sello:', stampResult.error);
                     }
                 }
-                
+
                 return { success: true, stampAdded: stampResult };
             }
             

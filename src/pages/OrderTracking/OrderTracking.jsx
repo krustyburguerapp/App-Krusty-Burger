@@ -10,7 +10,7 @@ import { getUserStamps, hasUserClaimedPrize } from '../../utils/loyaltySystem';
 import './OrderTracking.css';
 
 export default function OrderTracking() {
-    const { user } = useAuth();
+    const { user, userData } = useAuth(); // Agregar userData al hook
     const { orders, loading, error, sendInsist } = useOrders();
     const [insistTriggers, setInsistTriggers] = useState({});
     const [loyaltyStamps, setLoyaltyStamps] = useState(0);
@@ -89,11 +89,13 @@ export default function OrderTracking() {
                 cancelButtonText: 'Cerrar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Obtener email del usuario
-                    const userEmail = user?.email || 'no-disponible';
+                    // Obtener email del usuario (primero de userData, luego de user.email como fallback)
+                    const userEmail = userData?.email || user?.email || 'no-disponible';
                     const lastOrder = orders[0]?.id || 'no-disponible';
-                    const message = `Hola,%20completé%20mis%207%20sellos%20Krusty%20y%20quiero%20reclamar%20mi%20comida%20gratis.%0A%0A📧%20Mi%20correo:%20${userEmail}%0A📋%20ID%20último%20pedido:%20${lastOrder}`;
+                    const userName = userData?.displayName || user?.displayName || 'Usuario';
                     
+                    const message = `Hola! 👋%0A%0A🎉 *COMPLETÉ MIS 7 SELLOS KRUSTY* y quiero reclamar mi comida gratis.%0A%0A👤 *Nombre:* ${userName}%0A📧 *Email:* ${userEmail}%0A📋 *ID último pedido:* ${lastOrder}%0A%0A⚠️ *Los adicionales van por separado.*`;
+
                     // Abrir WhatsApp para reclamar
                     window.open(`https://wa.me/573025712968?text=${message}`, '_blank');
                 }
