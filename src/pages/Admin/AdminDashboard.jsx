@@ -68,6 +68,10 @@ export default function AdminDashboard() {
                             <span className="material-icons-round">inventory_2</span>
                             <span>Gestionar Productos</span>
                         </button>
+                        <button className="admin-action-btn" onClick={() => navigate('/admin/delivery-pricing')}>
+                            <span className="material-icons-round">local_shipping</span>
+                            <span>Precios Domicilio</span>
+                        </button>
                         <button className="admin-action-btn" onClick={() => navigate('/admin/loyalty')}>
                             <span className="material-icons-round">emoji_events</span>
                             <span>Fidelización</span>

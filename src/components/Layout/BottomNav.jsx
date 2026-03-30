@@ -17,6 +17,7 @@ export default function BottomNav() {
         { path: '/admin', icon: 'dashboard', label: 'Panel' },
         { path: '/admin/orders', icon: 'receipt_long', label: 'Pedidos' },
         { path: '/admin/products', icon: 'inventory_2', label: 'Productos' },
+        { path: '/admin/delivery-pricing', icon: 'local_shipping', label: 'Domicilios' },
         { path: '/menu', icon: 'restaurant_menu', label: 'Menú' }
     ];
 

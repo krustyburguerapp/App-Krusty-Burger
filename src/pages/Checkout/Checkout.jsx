@@ -77,20 +77,30 @@ export default function Checkout() {
 
     // Calcular tarifa cuando cambian las coordenadas o el tipo de entrega
     useEffect(() => {
-        if (userCoordinates && deliveryType === 'delivery') {
-            const info = calculateDeliveryInfo(
-                userCoordinates.latitude,
-                userCoordinates.longitude,
-                STORE_LOCATION.latitude,
-                STORE_LOCATION.longitude,
-                MAX_DELIVERY_DISTANCE_KM
-            );
-            setDistanceInfo(info);
-            setDeliveryFee(info.isWithinRange ? info.fee : 0);
-        } else if (deliveryType === 'pickup') {
-            setDistanceInfo(null);
-            setDeliveryFee(0);
-        }
+        const calculateFee = async () => {
+            if (userCoordinates && deliveryType === 'delivery') {
+                try {
+                    const info = await calculateDeliveryInfo(
+                        userCoordinates.latitude,
+                        userCoordinates.longitude,
+                        STORE_LOCATION.latitude,
+                        STORE_LOCATION.longitude,
+                        MAX_DELIVERY_DISTANCE_KM
+                    );
+                    setDistanceInfo(info);
+                    setDeliveryFee(info.isWithinRange ? info.fee : 0);
+                } catch (error) {
+                    console.error('Error al calcular tarifa de domicilio:', error);
+                    setDistanceInfo(null);
+                    setDeliveryFee(0);
+                }
+            } else if (deliveryType === 'pickup') {
+                setDistanceInfo(null);
+                setDeliveryFee(0);
+            }
+        };
+
+        calculateFee();
     }, [userCoordinates, deliveryType, setDeliveryFee]);
 
     useEffect(() => {
@@ -114,8 +124,8 @@ export default function Checkout() {
                 if (!firstErrorField) firstErrorField = 'address';
             }
             if (!locationUrl) {
-                errs.address = errs.address 
-                    ? 'Ingresa tu dirección y adjunta la ubicación GPS' 
+                errs.address = errs.address
+                    ? 'Ingresa tu dirección y adjunta la ubicación GPS'
                     : 'Adjunta tu ubicación GPS (es obligatorio)';
                 if (!firstErrorField) firstErrorField = 'address';
             }
@@ -150,11 +160,11 @@ export default function Checkout() {
                     payment: paymentMethodRef,
                     cash: cashAmountRef
                 };
-                
+
                 const ref = refMap[firstErrorField];
                 if (ref?.current) {
                     ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    
+
                     // Si es un input, hacer focus
                     if (ref.current.tagName === 'INPUT' || ref.current.tagName === 'TEXTAREA') {
                         ref.current.focus();
@@ -210,12 +220,12 @@ export default function Checkout() {
             // Ahora esperamos a que se guarde antes de continuar
             if (!hasProfile || editMode) {
                 console.log('💾 [Checkout] Guardando datos del usuario en perfil...');
-                const updateResult = await updateUserData({ 
-                    phone, 
-                    address, 
-                    addressNotes, 
-                    locationUrl, 
-                    hasCompletedProfile: true 
+                const updateResult = await updateUserData({
+                    phone,
+                    address,
+                    addressNotes,
+                    locationUrl,
+                    hasCompletedProfile: true
                 });
 
                 if (!updateResult.success) {
@@ -249,11 +259,11 @@ export default function Checkout() {
             console.log('📝 [Checkout] Creando pedido:', orderData);
 
             const result = await createOrder(orderData);
-            
+
             console.log('📍 [Checkout] Resultado de crear pedido:', result);
-            
+
             setLoading(false);
-            
+
             if (result.success) {
                 clearCart();
                 navigate(`/order-confirmation/${result.orderId}`, { state: { order: { ...orderData, id: result.orderId, estimatedTime } } });
@@ -290,7 +300,7 @@ export default function Checkout() {
                         <button className={`checkout-delivery-option ${deliveryType === 'delivery' ? 'active' : ''}`} onClick={() => setDeliveryType('delivery')}>
                             <span className="material-icons-round">delivery_dining</span>
                             <span>Domicilio</span>
-                            <small>{distanceInfo ? `+${distanceInfo.fee?.toLocaleString('es-CO')}` : '+$5,000'}</small>
+                            <small>{distanceInfo ? `+${distanceInfo.fee?.toLocaleString('es-CO')}` : 'Calculando...'}</small>
                         </button>
                         <button className={`checkout-delivery-option ${deliveryType === 'pickup' ? 'active' : ''}`} onClick={() => setDeliveryType('pickup')}>
                             <span className="material-icons-round">storefront</span>
@@ -303,7 +313,7 @@ export default function Checkout() {
                             <span className="material-icons-round" style={{ color: 'var(--color-primary)', fontSize: 20 }}>location_on</span>
                             <span>
                                 <strong>Distancia: {distanceInfo.distance} km</strong>
-                                {distanceInfo.isWithinRange 
+                                {distanceInfo.isWithinRange
                                     ? ` - Tarifa calculada: $${deliveryFee.toLocaleString('es-CO')}`
                                     : ` - ⚠️ Superas el límite de ${MAX_DELIVERY_DISTANCE_KM} km`
                                 }
@@ -357,14 +367,14 @@ export default function Checkout() {
                         <div className="checkout-form">
                             <div className="input-group">
                                 <label htmlFor="phone">WhatsApp</label>
-                                <input 
-                                    id="phone" 
+                                <input
+                                    id="phone"
                                     ref={phoneRef}
-                                    type="tel" 
-                                    className={`input-field ${errors.phone ? 'input-error' : ''}`} 
-                                    placeholder="Ej: 3001234567" 
-                                    value={phone} 
-                                    onChange={(e) => setPhone(e.target.value)} 
+                                    type="tel"
+                                    className={`input-field ${errors.phone ? 'input-error' : ''}`}
+                                    placeholder="Ej: 3001234567"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
                                 />
                                 {errors.phone && <span className="input-error-text">{errors.phone}</span>}
                                 <small style={{ color: 'var(--color-text-hint)', fontSize: 12 }}>Te confirmaremos el pedido por aquí</small>
@@ -373,14 +383,14 @@ export default function Checkout() {
                                 <>
                                     <div className="input-group">
                                         <label htmlFor="address" style={{ marginBottom: '4px' }}>Dirección</label>
-                                        <input 
-                                            id="address" 
+                                        <input
+                                            id="address"
                                             ref={addressRef}
-                                            type="text" 
-                                            className={`input-field ${errors.address ? 'input-error' : ''}`} 
-                                            placeholder="Calle, número, barrio" 
-                                            value={address} 
-                                            onChange={(e) => setAddress(e.target.value)} 
+                                            type="text"
+                                            className={`input-field ${errors.address ? 'input-error' : ''}`}
+                                            placeholder="Calle, número, barrio"
+                                            value={address}
+                                            onChange={(e) => setAddress(e.target.value)}
                                         />
 
                                         <button
@@ -513,9 +523,9 @@ export default function Checkout() {
                     )}
                 </div>
 
-                <button 
-                    className="btn btn-primary btn-lg btn-full checkout-submit" 
-                    onClick={handleSubmit} 
+                <button
+                    className="btn btn-primary btn-lg btn-full checkout-submit"
+                    onClick={handleSubmit}
                     disabled={loading || !storeOpen || (distanceInfo && !distanceInfo.isWithinRange)}
                 >
                     {loading ? <><Spinner size="sm" color="white" /> Procesando...</> : (

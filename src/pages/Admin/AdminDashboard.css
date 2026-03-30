@@ -160,6 +160,11 @@
     font-weight: var(--font-weight-medium);
 }
 
+/* Botón destacado para Precios Domicilio */
+.admin-action-btn:nth-child(3) .material-icons-round {
+    color: #4FC3F7;
+}
+
 @media (min-width: 768px) {
     .admin-stats-grid {
         grid-template-columns: repeat(4, 1fr);

@@ -21,6 +21,7 @@ const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const AdminOrders = lazy(() => import('./pages/Admin/AdminOrders'));
 const AdminProducts = lazy(() => import('./pages/Admin/AdminProducts'));
 const AdminLoyalty = lazy(() => import('./pages/Admin/AdminLoyalty'));
+const AdminDeliveryPricing = lazy(() => import('./pages/Admin/AdminDeliveryPricing'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 function LoadingScreen() {
@@ -84,6 +85,7 @@ function AppRoutes() {
             <Route path="/admin/orders" element={<AdminRoute><AppLayout><AdminOrders /></AppLayout></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AppLayout><AdminProducts /></AppLayout></AdminRoute>} />
             <Route path="/admin/loyalty" element={<AdminRoute><AppLayout><AdminLoyalty /></AppLayout></AdminRoute>} />
+            <Route path="/admin/delivery-pricing" element={<AdminRoute><AppLayout><AdminDeliveryPricing /></AppLayout></AdminRoute>} />
             <Route path="*" element={<AppLayout><Suspense fallback={<LoadingScreen />}><NotFound /></Suspense></AppLayout>} />
         </Routes>
     );

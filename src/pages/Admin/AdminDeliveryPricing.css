@@ -1,0 +1,276 @@
+.admin-delivery-pricing-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.admin-delivery-pricing-header h2 {
+    color: var(--color-text-on-dark);
+    font-size: var(--font-size-2xl);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.admin-delivery-pricing-header .admin-subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: var(--font-size-sm);
+}
+
+/* Última actualización */
+.pricing-last-updated {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xl);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pricing-last-updated .material-icons-round {
+    font-size: 24px;
+    color: var(--color-secondary);
+}
+
+.pricing-last-updated strong {
+    color: var(--color-text-on-dark);
+}
+
+.pricing-last-updated span {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--font-size-sm);
+}
+
+/* Secciones */
+.pricing-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.pricing-section-title {
+    color: var(--color-text-on-dark);
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pricing-section-title .material-icons-round {
+    color: var(--color-secondary);
+}
+
+/* Cards */
+.pricing-card {
+    background: var(--color-bg-dark-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pricing-card label {
+    color: var(--color-text-on-dark);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.pricing-card label .material-icons-round {
+    font-size: 16px;
+    color: var(--color-secondary);
+}
+
+/* Grid de precios */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+}
+
+@media (min-width: 600px) {
+    .pricing-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 900px) {
+    .pricing-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.pricing-input-card {
+    background: var(--color-bg-dark-elevated);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all var(--transition-fast) var(--ease-default);
+    animation: fadeInUp 0.3s var(--ease-out) both;
+}
+
+.pricing-input-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+}
+
+.pricing-input-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.pricing-distance-label {
+    color: var(--color-text-on-dark);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+.pricing-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.pricing-currency-symbol {
+    position: absolute;
+    left: 12px;
+    color: var(--color-secondary);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-base);
+    pointer-events: none;
+}
+
+.pricing-input {
+    padding-left: 24px !important;
+    font-weight: var(--font-weight-semibold);
+    text-align: left;
+}
+
+.pricing-input-hint {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    text-align: center;
+}
+
+/* Vista previa */
+.pricing-preview-card {
+    background: linear-gradient(135deg, rgba(211, 47, 47, 0.1), rgba(255, 179, 0, 0.05));
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid rgba(211, 47, 47, 0.2);
+}
+
+.preview-example {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.preview-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.preview-row:last-child {
+    border-bottom: none;
+}
+
+.preview-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: var(--font-size-sm);
+}
+
+.preview-value {
+    color: var(--color-secondary);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-base);
+}
+
+.preview-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: var(--spacing-sm);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-xs);
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.preview-info .material-icons-round {
+    font-size: 16px;
+    color: var(--color-secondary);
+    flex-shrink: 0;
+}
+
+/* Acciones */
+.pricing-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: var(--spacing-xl);
+}
+
+.pricing-actions .btn-ghost {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pricing-actions .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-on-dark);
+}
+
+.pricing-actions .btn-primary {
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-warning);
+    color: white;
+    font-size: 10px;
+    font-weight: var(--font-weight-bold);
+    padding: 2px 6px;
+    border-radius: var(--radius-full);
+    margin-left: 4px;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .pricing-actions {
+        flex-direction: column;
+    }
+
+    .pricing-actions .btn-ghost,
+    .pricing-actions .btn-primary {
+        width: 100%;
+    }
+}
