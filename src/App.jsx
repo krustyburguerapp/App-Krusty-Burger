@@ -21,7 +21,9 @@ const AdminDashboard = lazy(() => import('./pages/Admin/AdminDashboard'));
 const AdminOrders = lazy(() => import('./pages/Admin/AdminOrders'));
 const AdminProducts = lazy(() => import('./pages/Admin/AdminProducts'));
 const AdminLoyalty = lazy(() => import('./pages/Admin/AdminLoyalty'));
+const AdminPrizeClaims = lazy(() => import('./pages/Admin/AdminPrizeClaims'));
 const AdminDeliveryPricing = lazy(() => import('./pages/Admin/AdminDeliveryPricing'));
+const AdminSettings = lazy(() => import('./pages/Admin/AdminSettings'));
 const NotFound = lazy(() => import('./pages/NotFound/NotFound'));
 
 function LoadingScreen() {
@@ -85,7 +87,9 @@ function AppRoutes() {
             <Route path="/admin/orders" element={<AdminRoute><AppLayout><AdminOrders /></AppLayout></AdminRoute>} />
             <Route path="/admin/products" element={<AdminRoute><AppLayout><AdminProducts /></AppLayout></AdminRoute>} />
             <Route path="/admin/loyalty" element={<AdminRoute><AppLayout><AdminLoyalty /></AppLayout></AdminRoute>} />
+            <Route path="/admin/prize-claims" element={<AdminRoute><AppLayout><AdminPrizeClaims /></AppLayout></AdminRoute>} />
             <Route path="/admin/delivery-pricing" element={<AdminRoute><AppLayout><AdminDeliveryPricing /></AppLayout></AdminRoute>} />
+            <Route path="/admin/settings" element={<AdminRoute><AppLayout><AdminSettings /></AppLayout></AdminRoute>} />
             <Route path="*" element={<AppLayout><Suspense fallback={<LoadingScreen />}><NotFound /></Suspense></AppLayout>} />
         </Routes>
     );
@@ -93,7 +97,12 @@ function AppRoutes() {
 
 export default function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter
+            future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+            }}
+        >
             <AuthProvider>
                 <ProductsProvider>
                     <OrdersProvider>

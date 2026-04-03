@@ -14,7 +14,8 @@ export default function AdminProducts() {
     const [imageFile, setImageFile] = React.useState(null);
     const [saving, setSaving] = React.useState(false);
     const [form, setForm] = React.useState({
-        name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: 0
+        name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: 0,
+        promoActive: false, promoPrice: ''
     });
 
     // Filtros para el panel de organizador
@@ -30,7 +31,7 @@ export default function AdminProducts() {
 
     const openNew = () => {
         setEditingProduct(null);
-        setForm({ name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: products.length + 1 });
+        setForm({ name: '', description: '', price: '', category: CATEGORIES[0].id, subCategory: '', available: true, featured: false, order: products.length + 1, promoActive: false, promoPrice: '' });
         setImageFile(null);
         setModalOpen(true);
     };
@@ -44,7 +45,8 @@ export default function AdminProducts() {
 
         setForm({
             name: product.name, description: product.description, price: product.price.toString(),
-            category: validCategory, subCategory: product.subCategory || '', available: product.available, featured: product.featured, order: product.order || 0
+            category: validCategory, subCategory: product.subCategory || '', available: product.available, featured: product.featured, order: product.order || 0,
+            promoActive: product.promoActive || false, promoPrice: product.promoPrice ? product.promoPrice.toString() : ''
         });
         setImageFile(null);
         setModalOpen(true);
@@ -59,6 +61,15 @@ export default function AdminProducts() {
             showToast('Selecciona un tipo para el producto individual', 'error');
             return;
         }
+        // Validar que el precio promocional sea menor al precio normal
+        if (form.promoActive && form.promoPrice) {
+            const promoPrice = parseInt(form.promoPrice) || 0;
+            const normalPrice = parseInt(form.price) || 0;
+            if (promoPrice >= normalPrice) {
+                showToast('El precio promocional debe ser menor al precio normal', 'error');
+                return;
+            }
+        }
         setSaving(true);
         const productData = {
             name: form.name.trim(),
@@ -68,7 +79,9 @@ export default function AdminProducts() {
             subCategory: form.category === 'individual' ? form.subCategory : null,
             available: form.available,
             featured: form.featured,
-            order: parseInt(form.order) || 0
+            order: parseInt(form.order) || 0,
+            promoActive: form.promoActive,
+            promoPrice: form.promoActive ? (parseInt(form.promoPrice) || 0) : null
         };
         let result;
         if (editingProduct) {
@@ -140,7 +153,12 @@ export default function AdminProducts() {
                                     )}
                                 </div>
                                 <div className="admin-product-info">
-                                    <span className="admin-product-name">{product.name}</span>
+                                    <span className="admin-product-name">
+                                        {product.name}
+                                        {product.promoActive && product.promoPrice && (
+                                            <span className="admin-product-promo-badge"> Promo</span>
+                                        )}
+                                    </span>
                                     <span className="admin-product-cat">
                                         {CATEGORIES.find((c) => c.id === product.category)?.label || product.category}
                                         {product.category === 'individual' && product.subCategory && (
@@ -148,7 +166,20 @@ export default function AdminProducts() {
                                         )}
                                     </span>
                                 </div>
-                                <span className="admin-product-price">${product.price.toLocaleString('es-CO')}</span>
+                                <span className="admin-product-price">
+                                    {product.promoActive && product.promoPrice ? (
+                                        <>
+                                            <span style={{ textDecoration: 'line-through', opacity: 0.5, fontSize: '12px', marginRight: '4px' }}>
+                                                ${product.price.toLocaleString('es-CO')}
+                                            </span>
+                                            <span style={{ color: '#FFD700', fontWeight: '700' }}>
+                                                ${product.promoPrice.toLocaleString('es-CO')}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        `$${product.price.toLocaleString('es-CO')}`
+                                    )}
+                                </span>
                                 <div className="admin-product-actions">
                                     <button
                                         className={`btn btn-sm ${product.available ? 'btn-ghost' : 'btn-outline'}`}
@@ -194,6 +225,54 @@ export default function AdminProducts() {
                                 </select>
                             </div>
                         </div>
+
+                        {/* Sección de Precio Promocional */}
+                        <div className="admin-promo-section">
+                            <div className="admin-promo-header">
+                                <span className="material-icons-round" style={{ color: 'var(--color-warning)', fontSize: 20 }}>local_offer</span>
+                                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Precio Promocional</h4>
+                            </div>
+
+                            <label className="admin-promo-toggle">
+                                <input
+                                    type="checkbox"
+                                    checked={form.promoActive}
+                                    onChange={(e) => setForm({ ...form, promoActive: e.target.checked, promoPrice: e.target.checked ? form.promoPrice : '' })}
+                                />
+                                <span className="admin-promo-slider"></span>
+                                <span style={{ marginLeft: '8px', fontSize: '13px', fontWeight: '500' }}>
+                                    Activar promoción
+                                </span>
+                            </label>
+
+                            {form.promoActive && (
+                                <div className="admin-promo-inputs">
+                                    <div className="input-group" style={{ marginBottom: 0 }}>
+                                        <label>Precio Promocional (COP)</label>
+                                        <input
+                                            type="number"
+                                            className="input-field"
+                                            value={form.promoPrice}
+                                            onChange={(e) => setForm({ ...form, promoPrice: e.target.value })}
+                                            placeholder="15000"
+                                            style={{ borderColor: 'var(--color-warning)' }}
+                                        />
+                                        {form.price && form.promoPrice && (
+                                            <small style={{ color: 'var(--color-text-hint)', marginTop: '4px', display: 'block' }}>
+                                                Precio normal: ${parseInt(form.price).toLocaleString('es-CO')} →
+                                                <strong style={{ color: 'var(--color-success)' }}> Promo: ${parseInt(form.promoPrice).toLocaleString('es-CO')}</strong>
+                                                {parseInt(form.promoPrice) >= parseInt(form.price) && (
+                                                    <span style={{ color: '#ef5350', display: 'block', marginTop: '2px' }}>
+                                                        ⚠️ Debe ser menor al precio normal
+                                                    </span>
+                                                )}
+                                            </small>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {form.category === 'individual' && (
                             <div className="input-group">
                                 <label>Tipo de Individual</label>

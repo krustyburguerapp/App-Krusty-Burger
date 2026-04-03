@@ -59,6 +59,31 @@
     font-weight: var(--font-weight-bold);
 }
 
+.product-badge-promo {
+    position: absolute;
+    top: var(--spacing-xs);
+    left: var(--spacing-xs);
+    background: linear-gradient(135deg, #ff6b35, #ff4444);
+    color: white;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    animation: promoPulse 2s ease-in-out infinite;
+}
+
+@keyframes promoPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
 .product-badge-unavailable {
     position: absolute;
     inset: 0;
@@ -102,11 +127,30 @@
     margin-top: var(--spacing-xs);
 }
 
+.product-card-price-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .product-card-price {
     font-family: var(--font-display);
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-extrabold);
     color: var(--color-primary);
+}
+
+.product-card-price-original {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-hint);
+    text-decoration: line-through;
+    font-weight: var(--font-weight-medium);
+}
+
+.product-card-price-promo {
+    font-size: var(--font-size-xl);
+    color: #FFD700;
+    font-weight: var(--font-weight-extrabold);
 }
 
 .product-add-btn {

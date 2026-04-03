@@ -27,19 +27,19 @@ const isOrderFromToday = (timestamp) => {
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     const today = new Date();
     return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear();
+        date.getMonth() === today.getMonth() &&
+        date.getFullYear() === today.getFullYear();
 };
 
 // Calcular tiempo transcurrido desde la creación del pedido
 const calculateElapsedTime = (createdAt) => {
     if (!createdAt) return { minutes: 0, text: '0 min' };
-    
+
     const createdDate = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
     const now = new Date();
     const diffMs = now - createdDate;
     const diffMinutes = Math.floor(diffMs / 60000);
-    
+
     if (diffMinutes < 60) {
         return { minutes: diffMinutes, text: `${diffMinutes} min` };
     } else {
@@ -64,6 +64,10 @@ export default function AdminOrders() {
     const [newDriverName, setNewDriverName] = useState('');
     const [newDriverPhone, setNewDriverPhone] = useState('');
     const [savingDriver, setSavingDriver] = useState(false);
+
+    // Estados para el modal de reconfirmación de WhatsApp
+    const [reconfirmModalOpen, setReconfirmModalOpen] = useState(false);
+    const [orderToReconfirm, setOrderToReconfirm] = useState(null);
 
     const [now, setNow] = useState(Date.now());
 
@@ -149,7 +153,7 @@ export default function AdminOrders() {
         if (newStatus === 'preparing') {
             stopOrderAlarm();
         }
-        
+
         const result = await updateOrderStatus(orderId, newStatus);
         if (result.success) {
             showToast(`Pedido actualizado: ${getStatusLabel(newStatus)}`, 'success');
@@ -164,7 +168,7 @@ export default function AdminOrders() {
 
     const handleDeleteOrder = async (orderId, orderName) => {
         if (!confirm(`¿Estás seguro de eliminar el pedido "${orderName}"? Esta acción no se puede deshacer.`)) return;
-        
+
         const result = await deleteOrder(orderId);
         if (result.success) {
             showToast('Pedido eliminado correctamente', 'success');
@@ -199,7 +203,7 @@ export default function AdminOrders() {
         const updatedDrivers = [...savedDrivers, newDriver];
         setSavedDrivers(updatedDrivers);
         localStorage.setItem('krusty_drivers', JSON.stringify(updatedDrivers));
-        
+
         setSelectedDriverId(newDriver.id);
         setSavingDriver(false);
         showToast('Domiciliario guardado exitosamente', 'success');
@@ -208,7 +212,7 @@ export default function AdminOrders() {
     // Confirmar envío a domicilio
     const confirmDeliveryToDriver = () => {
         const driver = savedDrivers.find(d => d.id === selectedDriverId);
-        
+
         if (!driver && (!newDriverName.trim() || !newDriverPhone.trim())) {
             showToast('Seleccioná un domiciliario o ingresá uno nuevo', 'error');
             return;
@@ -228,7 +232,7 @@ export default function AdminOrders() {
 
         // Construir mensaje completo para WhatsApp
         const orderItems = selectedOrder.items.map(item => `${item.quantity}x ${item.name}`).join('\n');
-        const paymentInfo = selectedOrder.paymentMethod === 'efectivo' 
+        const paymentInfo = selectedOrder.paymentMethod === 'efectivo'
             ? `💵 Efectivo - Cliente paga: $${selectedOrder.cashAmount?.toLocaleString('es-CO') || selectedOrder.total.toLocaleString('es-CO')}\n💰 Cambio: $${(selectedOrder.cashAmount - selectedOrder.total).toLocaleString('es-CO')}`
             : `💳 ${selectedOrder.paymentMethod === 'nequi' ? 'Nequi/Daviplata' : selectedOrder.paymentMethod === 'tarjeta' ? 'Tarjeta física' : 'PSE'}`;
 
@@ -266,13 +270,13 @@ ${paymentInfo}
     const confirmPickupReady = (order) => {
         // Calcular tiempo de espera
         const elapsedTime = calculateElapsedTime(order.createdAt).minutes;
-        
+
         // Actualizar estado del pedido a "En Camino" (listo para recoger)
         handleStatusChange(order.id, 'onTheWay', 'Listo para recoger en local', { preparationTime: elapsedTime });
 
         // Construir mensaje completo para WhatsApp del cliente
         const orderItems = order.items.map(item => `${item.quantity}x ${item.name}`).join('\n');
-        const paymentInfo = order.paymentMethod === 'efectivo' 
+        const paymentInfo = order.paymentMethod === 'efectivo'
             ? `💵 Efectivo - Total: $${order.total.toLocaleString('es-CO')}`
             : `💳 ${order.paymentMethod === 'nequi' ? 'Nequi/Daviplata' : order.paymentMethod === 'tarjeta' ? 'Tarjeta física' : 'PSE'} - Pagado`;
 
@@ -300,6 +304,18 @@ ${paymentInfo}
 
         // Mostrar toast de confirmación
         showToast('Pedido marcado como listo + WhatsApp enviado al cliente', 'success');
+    };
+
+    // Enviar reconfirmación de WhatsApp
+    const sendReconfirmation = () => {
+        if (!orderToReconfirm) return;
+
+        const url = generateAdminWhatsAppURL(orderToReconfirm, true);
+        window.open(url, '_blank');
+
+        setReconfirmModalOpen(false);
+        setOrderToReconfirm(null);
+        showToast('Mensaje de WhatsApp abierto', 'success');
     };
 
     if (loading) return <div className="page admin-page"><Spinner size="lg" /></div>;
@@ -340,7 +356,7 @@ ${paymentInfo}
                         {filtered.map((order) => {
                             const level = order.insistCount || 0;
                             const isVibrating = (insistTriggers[order.id] || 0) > 0;
-                            
+
                             // Calcula los minutos que han pasado
                             let minutesWaiting = 0;
                             if (order.createdAt) {
@@ -349,21 +365,21 @@ ${paymentInfo}
                             }
 
                             return (
-                                <div key={order.id} 
-                                     className={`admin-order-card ${order.isNew ? 'new-order' : ''} ${isVibrating ? 'shake-admin-card' : ''}`} 
-                                     onClick={() => order.isNew && handleSeen(order.id)} 
-                                     style={{ 
-                                         position: 'relative', 
-                                         overflow: 'hidden',
-                                         background: level <= 0 ? 'var(--color-bg-dark-card)' :
-                                                     level === 1 ? 'linear-gradient(135deg, rgba(255, 248, 225, 0.1), rgba(255, 255, 255, 0.05))' :
-                                                     level === 2 ? '#3b3815' :
-                                                     level === 3 ? '#4a151b' :
-                                                     level === 4 ? '#590e0c' :
-                                                     'linear-gradient(135deg, #755f00, #802f00)',
-                                         borderColor: level >= 2 ? (level >= 4 ? '#f50057' : '#ffd54f') : 'rgba(255, 255, 255, 0.06)'
-                                     }}>
-                                    
+                                <div key={order.id}
+                                    className={`admin-order-card ${order.isNew ? 'new-order' : ''} ${isVibrating ? 'shake-admin-card' : ''}`}
+                                    onClick={() => order.isNew && handleSeen(order.id)}
+                                    style={{
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                        background: level <= 0 ? 'var(--color-bg-dark-card)' :
+                                            level === 1 ? 'linear-gradient(135deg, rgba(255, 248, 225, 0.1), rgba(255, 255, 255, 0.05))' :
+                                                level === 2 ? '#3b3815' :
+                                                    level === 3 ? '#4a151b' :
+                                                        level === 4 ? '#590e0c' :
+                                                            'linear-gradient(135deg, #755f00, #802f00)',
+                                        borderColor: level >= 2 ? (level >= 4 ? '#f50057' : '#ffd54f') : 'rgba(255, 255, 255, 0.06)'
+                                    }}>
+
                                     <div className="admin-order-header" style={{ alignItems: 'flex-start' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             <div className="admin-order-id">
@@ -381,11 +397,11 @@ ${paymentInfo}
                                                         fontSize: '11px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px',
                                                         padding: '4px 8px', borderRadius: '12px',
                                                         background: calculateElapsedTime(order.createdAt).minutes > 30 ? 'rgba(255, 82, 82, 0.2)' :
-                                                                  calculateElapsedTime(order.createdAt).minutes > 15 ? 'rgba(255, 213, 79, 0.2)' :
-                                                                  'rgba(255, 255, 255, 0.1)',
+                                                            calculateElapsedTime(order.createdAt).minutes > 15 ? 'rgba(255, 213, 79, 0.2)' :
+                                                                'rgba(255, 255, 255, 0.1)',
                                                         color: calculateElapsedTime(order.createdAt).minutes > 30 ? '#ff5252' :
-                                                               calculateElapsedTime(order.createdAt).minutes > 15 ? '#ffd54f' :
-                                                               'rgba(255,255,255,0.8)'
+                                                            calculateElapsedTime(order.createdAt).minutes > 15 ? '#ffd54f' :
+                                                                'rgba(255,255,255,0.8)'
                                                     }}>
                                                         <span className="material-icons-round" style={{ fontSize: 12 }}>schedule</span>
                                                         {calculateElapsedTime(order.createdAt).text}
@@ -400,7 +416,7 @@ ${paymentInfo}
                                             <span className="admin-order-total" style={{ fontSize: '22px' }}>${order.total?.toLocaleString('es-CO')}</span>
                                         </div>
                                     </div>
-    
+
                                     <div style={{ background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
                                         <div className="admin-order-items" style={{ marginBottom: 0 }}>
                                             {order.items.map((item, i) => (
@@ -410,9 +426,9 @@ ${paymentInfo}
                                     </div>
 
                                     {order.orderNotes && (
-                                        <div style={{ 
-                                            background: 'linear-gradient(45deg, #ffc107, #ff9800)', color: '#000', 
-                                            padding: '12px', borderRadius: '8px', marginBottom: '12px', 
+                                        <div style={{
+                                            background: 'linear-gradient(45deg, #ffc107, #ff9800)', color: '#000',
+                                            padding: '12px', borderRadius: '8px', marginBottom: '12px',
                                             display: 'flex', alignItems: 'flex-start', gap: '8px',
                                             fontWeight: 800, fontSize: '15px', boxShadow: '0 4px 10px rgba(255, 152, 0, 0.4)'
                                         }}>
@@ -422,7 +438,7 @@ ${paymentInfo}
                                             </div>
                                         </div>
                                     )}
-    
+
                                     <div className="admin-order-client">
                                         <span className="material-icons-round" style={{ fontSize: 16 }}>person</span>
                                         {order.userName}
@@ -430,7 +446,7 @@ ${paymentInfo}
                                         <span className="material-icons-round" style={{ fontSize: 16 }}>{order.deliveryType === 'delivery' ? 'delivery_dining' : 'storefront'}</span>
                                         {order.deliveryType === 'delivery' ? 'Domicilio' : 'Recoger'}
                                     </div>
-    
+
                                     {order.deliveryType === 'delivery' && (order.userAddress || order.userLocationUrl) && (
                                         <div className="admin-order-address">
                                             <span className="material-icons-round" style={{ fontSize: 14 }}>location_on</span>
@@ -444,7 +460,7 @@ ${paymentInfo}
                                             )}
                                         </div>
                                     )}
-    
+
                                     {order.paymentMethod && (
                                         <div className="admin-order-address" style={{ marginTop: '4px' }}>
                                             <span className="material-icons-round" style={{ fontSize: 14 }}>
@@ -455,7 +471,7 @@ ${paymentInfo}
                                             {order.paymentMethod === 'efectivo' ? 'Efectivo' :
                                                 order.paymentMethod === 'nequi' ? 'Nequi / Daviplata' :
                                                     order.paymentMethod === 'pse' ? 'PSE' : 'Tarjeta física'}
-    
+
                                             {order.paymentMethod === 'efectivo' && order.cashAmount > 0 && (
                                                 <strong style={{ marginLeft: '4px', color: 'var(--color-primary)' }}>
                                                     (Para cambio de: ${order.cashAmount.toLocaleString('es-CO')})
@@ -463,7 +479,7 @@ ${paymentInfo}
                                             )}
                                         </div>
                                     )}
-    
+
                                     <div className="admin-order-footer">
                                         <div className="admin-order-actions" style={{ width: '100%', justifyContent: 'space-between', display: 'flex', alignItems: 'center' }}>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -478,20 +494,23 @@ ${paymentInfo}
                                                         <span className="material-icons-round" style={{ fontSize: 16 }}>close</span>
                                                     </button>
                                                 )}
-                                                {/* Botón de WhatsApp - Reenviar mensaje (en TODOS los estados) */}
-                                                <a
-                                                    href={generateAdminWhatsAppURL(order, true)}
-                                                    target="_blank" rel="noopener noreferrer"
-                                                    className="btn btn-sm btn-ghost"
-                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px' }}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    title="Reenviar mensaje de WhatsApp"
-                                                >
-                                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--color-success)" style={{ flexShrink: 0 }}>
-                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                                                    </svg>
-                                                    <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--color-success)' }}>WhatsApp</span>
-                                                </a>
+                                                {/* Botón de WhatsApp - Reenviar mensaje (solo en preparación, listo y en camino) */}
+                                                {order.status !== 'pending' && order.status !== 'delivered' && order.status !== 'cancelled' && (
+                                                    <button
+                                                        className="btn btn-sm btn-ghost"
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px' }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOrderToReconfirm(order);
+                                                            setReconfirmModalOpen(true);
+                                                        }}
+                                                        title="Reenviar mensaje de WhatsApp"
+                                                    >
+                                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="var(--color-success)" style={{ flexShrink: 0 }}>
+                                                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 {order.status === 'pending' && (
@@ -679,6 +698,96 @@ ${paymentInfo}
                             </div>
                         </>
                     )}
+                </div>
+            </Modal>
+
+            {/* Modal de reconfirmación de WhatsApp */}
+            <Modal
+                isOpen={reconfirmModalOpen}
+                onClose={() => setReconfirmModalOpen(false)}
+                title="⚠️ Reenviar Confirmación"
+                size="sm"
+            >
+                <div style={{ padding: 'var(--spacing-md)' }}>
+                    {/* Ícono de advertencia */}
+                    <div style={{
+                        width: '64px',
+                        height: '64px',
+                        margin: '0 auto 16px',
+                        background: 'rgba(255, 152, 0, 0.1)',
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                    }}>
+                        <span className="material-icons-round" style={{
+                            fontSize: '36px',
+                            color: 'var(--color-warning)',
+                        }}>warning</span>
+                    </div>
+
+                    {/* Mensaje principal */}
+                    <h4 style={{
+                        margin: '0 0 12px 0',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        textAlign: 'center',
+                        color: 'var(--color-text-on-dark)'
+                    }}>
+                        ¿Estás seguro de reenviar la confirmación?
+                    </h4>
+
+                    {/* Descripción */}
+                    <p style={{
+                        margin: '0 0 20px 0',
+                        fontSize: '14px',
+                        color: 'var(--color-text-secondary)',
+                        textAlign: 'center',
+                        lineHeight: '1.5'
+                    }}>
+                        Este botón solo debe usarse si la confirmación original <strong>falló o no llegó</strong> al cliente.
+                    </p>
+
+                    {/* Resumen del pedido */}
+                    {orderToReconfirm && (
+                        <div style={{
+                            background: 'var(--color-surface-alt)',
+                            padding: 'var(--spacing-md)',
+                            borderRadius: '8px',
+                            marginBottom: 'var(--spacing-md)'
+                        }}>
+                            <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <strong>Pedido:</strong> #{orderToReconfirm.id.slice(-6).toUpperCase()}
+                                </div>
+                                <div style={{ marginBottom: '4px' }}>
+                                    <strong>Cliente:</strong> {orderToReconfirm.userName}
+                                </div>
+                                <div>
+                                    <strong>Estado:</strong> {orderToReconfirm.status === 'preparing' ? '🍳 En Preparación' : orderToReconfirm.status === 'onTheWay' ? '🛵 En Camino' : '✅ Listo'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Botones de acción */}
+                    <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+                        <button
+                            className="btn btn-ghost btn-full"
+                            onClick={() => setReconfirmModalOpen(false)}
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            className="btn btn-success btn-full"
+                            onClick={sendReconfirmation}
+                        >
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="white" style={{ marginRight: '8px', flexShrink: 0 }}>
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                            </svg>
+                            Sí, Reenviar
+                        </button>
+                    </div>
                 </div>
             </Modal>
         </div>

@@ -8,6 +8,8 @@ import { calculateEstimatedTime } from '../../utils/estimatedTime';
 import { showToast } from '../../utils/notifications';
 import { calculateDeliveryInfo, MAX_DELIVERY_DISTANCE_KM } from '../../utils/deliveryCost';
 import { STORE_LOCATION } from '../../config/storeLocation';
+import { getPrizeRedemptionState } from '../../utils/loyaltySystem';
+import { getRestaurantSettings, isRestaurantOpen, getRestaurantStatus } from '../../config/restaurantSettings';
 import Spinner from '../../components/UI/Spinner';
 import './Checkout.css';
 
@@ -26,7 +28,7 @@ function extractCoordinates(url) {
 
 export default function Checkout() {
     const { user, userData, updateUserData } = useAuth();
-    const { items, subtotal, clearCart, deliveryFee, setDeliveryFee, total } = useCart();
+    const { items, subtotal, clearCart, deliveryFee, setDeliveryFee, total, prizeSavings, isPrizeRedemptionActive, hasRequiredPrizeItems } = useCart();
     const { createOrder } = useOrders();
     const navigate = useNavigate();
 
@@ -46,6 +48,14 @@ export default function Checkout() {
     const [userCoordinates, setUserCoordinates] = useState(null);
     const [distanceInfo, setDistanceInfo] = useState(null);
 
+    // Verificar si es pedido de premio
+    const redemptionState = getPrizeRedemptionState();
+    const isPrizeOrder = isPrizeRedemptionActive && hasRequiredPrizeItems();
+
+    // Estado para configuración del restaurante
+    const [restaurantSettings, setRestaurantSettings] = useState(null);
+    const [restaurantStatus, setRestaurantStatus] = useState({ isOpen: true, message: 'Abierto' });
+
     // Refs para los campos del formulario
     const phoneRef = useRef(null);
     const addressRef = useRef(null);
@@ -53,7 +63,17 @@ export default function Checkout() {
     const cashAmountRef = useRef(null);
 
     const hasProfile = userData?.hasCompletedProfile && userData?.phone;
-    const storeOpen = isStoreOpen(deliveryType);
+    const storeOpen = isStoreOpen(deliveryType) && restaurantStatus.isOpen;
+
+    // Cargar configuración del restaurante
+    useEffect(() => {
+        const loadSettings = async () => {
+            const settings = await getRestaurantSettings();
+            setRestaurantSettings(settings);
+            setRestaurantStatus(getRestaurantStatus(settings));
+        };
+        loadSettings();
+    }, []);
 
     useEffect(() => {
         if (hasProfile && !editMode) {
@@ -88,7 +108,19 @@ export default function Checkout() {
                         MAX_DELIVERY_DISTANCE_KM
                     );
                     setDistanceInfo(info);
-                    setDeliveryFee(info.isWithinRange ? info.fee : 0);
+
+                    // Verificar si los domicilios están habilitados
+                    if (restaurantSettings && !restaurantSettings.deliveryEnabled) {
+                        setDeliveryFee(0);
+                    }
+                    // Verificar si hay promoción de domicilios gratis
+                    else if (restaurantSettings && restaurantSettings.freeDeliveryPromo) {
+                        setDeliveryFee(0);
+                    }
+                    // Calcular tarifa normal
+                    else {
+                        setDeliveryFee(info.isWithinRange ? info.fee : 0);
+                    }
                 } catch (error) {
                     console.error('Error al calcular tarifa de domicilio:', error);
                     setDistanceInfo(null);
@@ -101,7 +133,7 @@ export default function Checkout() {
         };
 
         calculateFee();
-    }, [userCoordinates, deliveryType, setDeliveryFee]);
+    }, [userCoordinates, deliveryType, setDeliveryFee, restaurantSettings]);
 
     useEffect(() => {
         if (items.length === 0) navigate('/menu');
@@ -110,6 +142,12 @@ export default function Checkout() {
     const validate = () => {
         const errs = {};
         let firstErrorField = null;
+
+        // Validar que los domicilios estén habilitados
+        if (deliveryType === 'delivery' && restaurantSettings && !restaurantSettings.deliveryEnabled) {
+            errs.delivery = 'Los domicilios no están disponibles en este momento';
+            firstErrorField = 'delivery';
+        }
 
         // Validar WhatsApp
         if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
@@ -253,7 +291,9 @@ export default function Checkout() {
                 estimatedTime: estimatedTime || 0,
                 paymentMethod: paymentMethod || '',
                 cashAmount: paymentMethod === 'efectivo' ? parseInt(cashAmount.replace(/\D/g, '')) : 0,
-                orderNotes: orderNotes || ''
+                orderNotes: orderNotes || '',
+                isPrizeOrder: isPrizeOrder || false,
+                prizeSavings: prizeSavings || 0
             };
 
             console.log('📝 [Checkout] Creando pedido:', orderData);
@@ -284,12 +324,42 @@ export default function Checkout() {
             <div className="container checkout-container">
                 <h2 className="checkout-title">Confirmar Pedido</h2>
 
+                {/* Banner de restaurante cerrado */}
                 {!storeOpen && (
                     <div className="store-closed-banner" style={{ marginBottom: 'var(--spacing-md)' }}>
                         <span className="material-icons-round">schedule</span>
                         <div>
-                            <strong>🕒 {getClosedMessage(deliveryType)}</strong>
-                            <p>Horario: {getBusinessHoursText(deliveryType)}</p>
+                            <strong>🕒 {restaurantStatus.message}</strong>
+                            <p>
+                                {restaurantSettings?.closedToday
+                                    ? 'El restaurante no está atendiendo hoy. Vuelve mañana.'
+                                    : restaurantSettings
+                                        ? `Horario: ${restaurantSettings.openingTime} - ${restaurantSettings.closingTime}`
+                                        : getBusinessHoursText(deliveryType)
+                                }
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Banner de domicilios no disponibles */}
+                {deliveryType === 'delivery' && restaurantSettings && !restaurantSettings.deliveryEnabled && (
+                    <div className="store-closed-banner" style={{ marginBottom: 'var(--spacing-md)', background: 'rgba(244, 67, 54, 0.15)', borderLeft: '4px solid #ef5350' }}>
+                        <span className="material-icons-round" style={{ color: '#ef5350' }}>delivery_dining</span>
+                        <div>
+                            <strong>🚫 Domicilios no disponibles</strong>
+                            <p>El servicio de domicilio está desactivado por el momento. Puedes elegir "Recoger en local".</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Banner de promoción de domicilios gratis */}
+                {deliveryType === 'delivery' && restaurantSettings && restaurantSettings.freeDeliveryPromo && (
+                    <div className="store-closed-banner" style={{ marginBottom: 'var(--spacing-md)', background: 'rgba(76, 175, 80, 0.15)', borderLeft: '4px solid var(--color-success)' }}>
+                        <span className="material-icons-round" style={{ color: 'var(--color-success)' }}>celebration</span>
+                        <div>
+                            <strong>🎉 ¡Domicilio GRATIS hoy!</strong>
+                            <p>Aprovecha esta promoción especial. El domicilio es completamente gratis.</p>
                         </div>
                     </div>
                 )}
@@ -297,10 +367,22 @@ export default function Checkout() {
                 <div className="checkout-section">
                     <h3>Tipo de entrega</h3>
                     <div className="checkout-delivery-options">
-                        <button className={`checkout-delivery-option ${deliveryType === 'delivery' ? 'active' : ''}`} onClick={() => setDeliveryType('delivery')}>
+                        <button
+                            className={`checkout-delivery-option ${deliveryType === 'delivery' ? 'active' : ''}`}
+                            onClick={() => setDeliveryType('delivery')}
+                            disabled={restaurantSettings && !restaurantSettings.deliveryEnabled}
+                            style={restaurantSettings && !restaurantSettings.deliveryEnabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                        >
                             <span className="material-icons-round">delivery_dining</span>
                             <span>Domicilio</span>
-                            <small>{distanceInfo ? `+${distanceInfo.fee?.toLocaleString('es-CO')}` : 'Calculando...'}</small>
+                            <small>
+                                {restaurantSettings?.freeDeliveryPromo
+                                    ? '¡GRATIS!'
+                                    : distanceInfo
+                                        ? `+$${distanceInfo.fee?.toLocaleString('es-CO')}`
+                                        : 'Calculando...'
+                                }
+                            </small>
                         </button>
                         <button className={`checkout-delivery-option ${deliveryType === 'pickup' ? 'active' : ''}`} onClick={() => setDeliveryType('pickup')}>
                             <span className="material-icons-round">storefront</span>
@@ -430,18 +512,42 @@ export default function Checkout() {
 
                 <div className="checkout-section">
                     <h3>Resumen del pedido</h3>
-                    <div className="checkout-summary">
-                        {items.map((item) => (
-                            <div key={item.productId} className="checkout-summary-item">
-                                <span>{item.quantity}x {item.name}</span>
-                                <span>${(item.price * item.quantity).toLocaleString('es-CO')}</span>
+                    {isPrizeOrder && (
+                        <div className="prize-banner-summary">
+                            <span className="material-icons-round">card_giftcard</span>
+                            <div>
+                                <strong>🎉 Premio de 7 Sellos Aplicado</strong>
+                                <p>1 Comida Individual + 1 Bebida Pequeña GRATIS</p>
                             </div>
-                        ))}
+                        </div>
+                    )}
+                    <div className="checkout-summary">
+                        {items.map((item) => {
+                            const isFreeItem = isPrizeOrder &&
+                                (item.category === 'individual' || item.category === 'bebidas_pequenas') &&
+                                items.findIndex(i => i.category === item.category) === 0;
+
+                            return (
+                                <div key={item.productId} className={`checkout-summary-item ${isFreeItem ? 'free-item' : ''}`}>
+                                    <span>
+                                        {item.quantity}x {item.name}
+                                        {isFreeItem && <span className="free-badge"> (GRATIS)</span>}
+                                    </span>
+                                    <span>${isFreeItem ? 0 : (item.price * item.quantity).toLocaleString('es-CO')}</span>
+                                </div>
+                            );
+                        })}
                         <div className="checkout-summary-divider" />
                         <div className="checkout-summary-item">
                             <span>Subtotal</span>
                             <span>${subtotal.toLocaleString('es-CO')}</span>
                         </div>
+                        {prizeSavings > 0 && (
+                            <div className="checkout-summary-item prize-discount">
+                                <span>Descuento Premio (7 sellos)</span>
+                                <span>-${prizeSavings.toLocaleString('es-CO')}</span>
+                            </div>
+                        )}
                         {deliveryType === 'delivery' && (
                             <div className="checkout-summary-item">
                                 <span>Domicilio ({distanceInfo?.distance || '--'} km)</span>
@@ -452,6 +558,12 @@ export default function Checkout() {
                             <span>Total</span>
                             <span>${total.toLocaleString('es-CO')}</span>
                         </div>
+                        {prizeSavings > 0 && (
+                            <div className="checkout-savings-note">
+                                <span className="material-icons-round">celebration</span>
+                                ¡Ahorraste ${prizeSavings.toLocaleString('es-CO')} con tu premio!
+                            </div>
+                        )}
                     </div>
                     {estimatedTime > 0 && (
                         <div className="checkout-estimated">

@@ -5,6 +5,7 @@ import ProductBuilderModal from '../../components/Product/ProductBuilderModal';
 import CategoryFilter from '../../components/Product/CategoryFilter';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
+import PrizeRedemptionBanner from '../../components/UI/PrizeRedemptionBanner';
 import { getStoreStatus, getBusinessHoursText, getNextOpenTime } from '../../utils/businessHours';
 import { INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import './Menu.css';
@@ -27,7 +28,7 @@ export default function Menu() {
             return matchCategory && matchSearch;
         });
 
-        const featuredList = filtered.filter(p => p.featured);
+        const featuredList = filtered.filter(p => p.featured || (p.promoActive && p.promoPrice));
 
         let groupedProducts = null;
         let regularList = null;
@@ -68,6 +69,8 @@ export default function Menu() {
     return (
         <div className="page">
             <div className="container">
+                <PrizeRedemptionBanner />
+
                 {storeStatus === 'closed' && (
                     <div className="store-closed-banner">
                         <span className="material-icons-round">schedule</span>

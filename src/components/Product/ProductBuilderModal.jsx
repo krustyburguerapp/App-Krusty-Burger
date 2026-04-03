@@ -198,7 +198,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
             }
         }
     };
-    
+
     // Handlers para libre elección
     const handleTempDrinkToggle = (bebida, add) => {
         const existing = tempBebidas.find(item => item.product.id === bebida.id);
@@ -227,18 +227,18 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
     };
 
     const handleFamiliarDrinkToggle = (bebida, add) => {
-         const existing = selectedFamiliarDrinks.find(item => item.product.id === bebida.id);
-         if (add) {
-             const currentTotal = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
-             if (currentTotal >= totalFamiliarQty) return;
-             if (existing) setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty + 1 } : i));
-             else setSelectedFamiliarDrinks([...selectedFamiliarDrinks, { product: bebida, qty: 1 }]);
-         } else {
-             if (existing) {
-                 if (existing.qty > 1) setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty - 1 } : i));
-                 else setSelectedFamiliarDrinks(selectedFamiliarDrinks.filter(i => i.product.id !== bebida.id));
-             }
-         }
+        const existing = selectedFamiliarDrinks.find(item => item.product.id === bebida.id);
+        if (add) {
+            const currentTotal = selectedFamiliarDrinks.reduce((acc, curr) => acc + curr.qty, 0);
+            if (currentTotal >= totalFamiliarQty) return;
+            if (existing) setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty + 1 } : i));
+            else setSelectedFamiliarDrinks([...selectedFamiliarDrinks, { product: bebida, qty: 1 }]);
+        } else {
+            if (existing) {
+                if (existing.qty > 1) setSelectedFamiliarDrinks(selectedFamiliarDrinks.map(i => i.product.id === bebida.id ? { ...i, qty: i.qty - 1 } : i));
+                else setSelectedFamiliarDrinks(selectedFamiliarDrinks.filter(i => i.product.id !== bebida.id));
+            }
+        }
     };
 
     const handleAddToCart = () => {
@@ -312,7 +312,8 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
     };
 
     // Cálculos de subtotal
-    const baseTotal = product.price * quantity;
+    const basePrice = product.promoActive && product.promoPrice ? product.promoPrice : product.price;
+    const baseTotal = basePrice * quantity;
     const combosTotal = selectedCombos.reduce((sum, c) => sum + (c.combo.price * c.qty), 0);
     const bebidasTotal = tempBebidas.reduce((sum, b) => sum + (b.product.price * b.qty), 0);
     const adicionalesTotal = tempAdicionales.reduce((sum, a) => sum + (a.product.price * a.qty), 0);
@@ -326,9 +327,9 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={product.name} size="md">
             <div className="product-builder">
-                
+
                 <div className="pb-sections-container pb-step-container">
-                    
+
                     {currentStep === 'info' && (
                         <div className="pb-step-content slide-in-right">
                             {/* --- SECCIÓN HERO DEL PRODUCTO --- */}
@@ -342,13 +343,20 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                         </div>
                                     )}
                                 </div>
-                                
+
                                 <div className="pb-info">
                                     <p className="pb-desc">{product.description}</p>
                                     <div className="pb-price-row">
-                                        <span className="pb-price">${product.price.toLocaleString('es-CO')}</span>
+                                        {product.promoActive && product.promoPrice ? (
+                                            <>
+                                                <span className="pb-price pb-price-original">${product.price.toLocaleString('es-CO')}</span>
+                                                <span className="pb-price pb-price-promo">${product.promoPrice.toLocaleString('es-CO')}</span>
+                                            </>
+                                        ) : (
+                                            <span className="pb-price">${product.price.toLocaleString('es-CO')}</span>
+                                        )}
                                     </div>
-                                    
+
                                     <div className="pb-base-qty">
                                         <span>Cantidad a llevar:</span>
                                         <div className="pb-qty-controls">
@@ -370,7 +378,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                         <div className="pb-step-content slide-in-right">
                             <div className="pb-section">
                                 <h3 className="pb-section-title">
-                                    <span className="material-icons-round">fastfood</span> 
+                                    <span className="material-icons-round">fastfood</span>
                                     Elige tus Combos
                                 </h3>
                                 <div className="pb-list">
@@ -402,10 +410,10 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
 
                                 {/* BEBIDAS PARA COMBOS PEQUEÑOS */}
                                 {totalPeqCombos > 0 && bebidasPequenasList.length > 0 && (
-                                    <div className="pb-sub-section fade-in" style={{marginTop: '1rem'}}>
+                                    <div className="pb-sub-section fade-in" style={{ marginTop: '1rem' }}>
                                         <label className="pb-label">
                                             Elige {totalPeqCombos} bebida(s) para tu(s) Combo(s) Pequeño(s):
-                                            {totalSelectedPeqDrinks < totalPeqCombos && <span className="pb-error-text" style={{display: 'block', marginTop: '4px'}}>Faltan {totalPeqCombos - totalSelectedPeqDrinks}</span>}
+                                            {totalSelectedPeqDrinks < totalPeqCombos && <span className="pb-error-text" style={{ display: 'block', marginTop: '4px' }}>Faltan {totalPeqCombos - totalSelectedPeqDrinks}</span>}
                                         </label>
                                         <div className="pb-grid">
                                             {bebidasPequenasList.map(bebida => {
@@ -413,13 +421,13 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                                 const qty = selected ? selected.qty : 0;
                                                 return (
                                                     <div key={bebida.id} className={`pb-grid-item ${qty > 0 ? 'selected' : ''}`} onClick={() => handleDrinkToggle(bebida, true, true)}>
-                                                {bebida.imageURL && (
-                                                    <div className="pb-grid-img-wrapper">
-                                                        <img src={bebida.imageURL} alt={bebida.name} />
-                                                    </div>
-                                                )}
-                                                <span className="pb-grid-name">{bebida.name}</span>
-                                                {qty > 0 && totalPeqCombos > 1 && (
+                                                        {bebida.imageURL && (
+                                                            <div className="pb-grid-img-wrapper">
+                                                                <img src={bebida.imageURL} alt={bebida.name} />
+                                                            </div>
+                                                        )}
+                                                        <span className="pb-grid-name">{bebida.name}</span>
+                                                        {qty > 0 && totalPeqCombos > 1 && (
                                                             <div className="pb-grid-qty" onClick={e => e.stopPropagation()}>
                                                                 <button className="btn btn-icon btn-sm" onClick={() => handleDrinkToggle(bebida, true, false)}><span className="material-icons-round">remove</span></button>
                                                                 <span>{qty}</span>
@@ -435,10 +443,10 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
 
                                 {/* BEBIDAS PARA COMBOS MEDIANOS */}
                                 {totalMedCombos > 0 && bebidasMedianasList.length > 0 && (
-                                    <div className="pb-sub-section fade-in" style={{marginTop: '1rem'}}>
+                                    <div className="pb-sub-section fade-in" style={{ marginTop: '1rem' }}>
                                         <label className="pb-label">
                                             Elige {totalMedCombos} bebida(s) para tu(s) Combo(s) Mediano(s):
-                                            {totalSelectedMedDrinks < totalMedCombos && <span className="pb-error-text" style={{display: 'block', marginTop: '4px'}}>Faltan {totalMedCombos - totalSelectedMedDrinks}</span>}
+                                            {totalSelectedMedDrinks < totalMedCombos && <span className="pb-error-text" style={{ display: 'block', marginTop: '4px' }}>Faltan {totalMedCombos - totalSelectedMedDrinks}</span>}
                                         </label>
                                         <div className="pb-grid">
                                             {bebidasMedianasList.map(bebida => {
@@ -446,13 +454,13 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                                 const qty = selected ? selected.qty : 0;
                                                 return (
                                                     <div key={bebida.id} className={`pb-grid-item ${qty > 0 ? 'selected' : ''}`} onClick={() => handleDrinkToggle(bebida, false, true)}>
-                                                {bebida.imageURL && (
-                                                    <div className="pb-grid-img-wrapper">
-                                                        <img src={bebida.imageURL} alt={bebida.name} />
-                                                    </div>
-                                                )}
-                                                <span className="pb-grid-name">{bebida.name}</span>
-                                                {qty > 0 && totalMedCombos > 1 && (
+                                                        {bebida.imageURL && (
+                                                            <div className="pb-grid-img-wrapper">
+                                                                <img src={bebida.imageURL} alt={bebida.name} />
+                                                            </div>
+                                                        )}
+                                                        <span className="pb-grid-name">{bebida.name}</span>
+                                                        {qty > 0 && totalMedCombos > 1 && (
                                                             <div className="pb-grid-qty" onClick={e => e.stopPropagation()}>
                                                                 <button className="btn btn-icon btn-sm" onClick={() => handleDrinkToggle(bebida, false, false)}><span className="material-icons-round">remove</span></button>
                                                                 <span>{qty}</span>
@@ -483,13 +491,13 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                         const qty = selected ? selected.qty : 0;
                                         return (
                                             <div key={bebida.id} className={`pb-grid-item ${qty > 0 ? 'selected' : ''}`} onClick={() => handleFamiliarDrinkToggle(bebida, true)}>
-                                            {bebida.imageURL && (
-                                                <div className="pb-grid-img-wrapper">
-                                                    <img src={bebida.imageURL} alt={bebida.name} />
-                                                </div>
-                                            )}
-                                            <span className="pb-grid-name">{bebida.name}</span>
-                                            {qty > 0 && totalFamiliarQty > 1 && (
+                                                {bebida.imageURL && (
+                                                    <div className="pb-grid-img-wrapper">
+                                                        <img src={bebida.imageURL} alt={bebida.name} />
+                                                    </div>
+                                                )}
+                                                <span className="pb-grid-name">{bebida.name}</span>
+                                                {qty > 0 && totalFamiliarQty > 1 && (
                                                     <div className="pb-grid-qty" onClick={e => e.stopPropagation()}>
                                                         <button className="btn btn-icon btn-sm" onClick={() => handleFamiliarDrinkToggle(bebida, false)}><span className="material-icons-round">remove</span></button>
                                                         <span>{qty}</span>
@@ -508,7 +516,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                         <div className="pb-step-content slide-in-right">
                             <div className="pb-section">
                                 <h3 className="pb-section-title">
-                                    <span className="material-icons-round">local_drink</span> 
+                                    <span className="material-icons-round">local_drink</span>
                                     ¿Deseas una bebida?
                                 </h3>
                                 <div className="pb-list">
@@ -517,13 +525,13 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                         const qty = selected ? selected.qty : 0;
                                         return (
                                             <div key={bebida.id} className="pb-item">
-                                            {bebida.imageURL && (
-                                                <div className="pb-item-img-wrapper">
-                                                    <img src={bebida.imageURL} alt={bebida.name} />
-                                                </div>
-                                            )}
-                                            <div className="pb-item-info">
-                                                <span className="pb-item-name">{bebida.name}</span>
+                                                {bebida.imageURL && (
+                                                    <div className="pb-item-img-wrapper">
+                                                        <img src={bebida.imageURL} alt={bebida.name} />
+                                                    </div>
+                                                )}
+                                                <div className="pb-item-info">
+                                                    <span className="pb-item-name">{bebida.name}</span>
                                                     <span className="pb-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
                                                 </div>
                                                 <div className="pb-item-actions">
@@ -549,7 +557,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                         <div className="pb-step-content slide-in-right">
                             <div className="pb-section">
                                 <h3 className="pb-section-title">
-                                    <span className="material-icons-round">add_circle</span> 
+                                    <span className="material-icons-round">add_circle</span>
                                     ¿Agregarás algo más? (Adicionales)
                                 </h3>
                                 <div className="pb-list">
@@ -558,13 +566,13 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                         const qty = selected ? selected.qty : 0;
                                         return (
                                             <div key={adicional.id} className="pb-item">
-                                            {adicional.imageURL && (
-                                                <div className="pb-item-img-wrapper">
-                                                    <img src={adicional.imageURL} alt={adicional.name} />
-                                                </div>
-                                            )}
-                                            <div className="pb-item-info">
-                                                <span className="pb-item-name">{adicional.name}</span>
+                                                {adicional.imageURL && (
+                                                    <div className="pb-item-img-wrapper">
+                                                        <img src={adicional.imageURL} alt={adicional.name} />
+                                                    </div>
+                                                )}
+                                                <div className="pb-item-info">
+                                                    <span className="pb-item-name">{adicional.name}</span>
                                                     <span className="pb-item-price">+${adicional.price.toLocaleString('es-CO')}</span>
                                                 </div>
                                                 <div className="pb-item-actions">
@@ -589,7 +597,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
 
                 <div className="pb-footer">
                     {currentStep !== 'info' ? (
-                        <button className="btn btn-outline btn-sm" onClick={goBack} style={{padding: '0 12px'}}>
+                        <button className="btn btn-outline btn-sm" onClick={goBack} style={{ padding: '0 12px' }}>
                             <span className="material-icons-round">arrow_back</span>
                             Atrás
                         </button>
@@ -601,7 +609,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                         <span>Total:</span>
                         <span className="pb-footer-price">${grandTotal.toLocaleString('es-CO')}</span>
                     </div>
-                    
+
                     {currentStep === 'info' && (
                         <button className="btn btn-primary" onClick={() => {
                             if (isIndividual) goToStep('combos');
@@ -616,7 +624,7 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                         <button className="btn btn-primary" onClick={() => {
                             if (totalSelectedPeqDrinks !== totalPeqCombos) { showToast(`Te faltan ${totalPeqCombos - totalSelectedPeqDrinks} bebidas pequeñas.`, 'error'); return; }
                             if (totalSelectedMedDrinks !== totalMedCombos) { showToast(`Te faltan ${totalMedCombos - totalSelectedMedDrinks} bebidas medianas.`, 'error'); return; }
-                            
+
                             const hasCombos = totalPeqCombos > 0 || totalMedCombos > 0 || selectedCombos.length > 0;
                             if (hasCombos) {
                                 goToStep('extras'); // Si llevó combo, salta directo a extras
@@ -629,18 +637,18 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                     )}
 
                     {currentStep === 'familiar_drinks' && (
-                         <button className="btn btn-primary" onClick={() => {
-                             if (totalSelectedFamiliarDrinks < totalFamiliarQty) { showToast(`Faltan ${totalFamiliarQty - totalSelectedFamiliarDrinks} bebidas por escoger.`, 'error'); return; }
-                             goToStep('extras');
-                         }}>
-                             Continuar <span className="material-icons-round">arrow_forward</span>
-                         </button>
+                        <button className="btn btn-primary" onClick={() => {
+                            if (totalSelectedFamiliarDrinks < totalFamiliarQty) { showToast(`Faltan ${totalFamiliarQty - totalSelectedFamiliarDrinks} bebidas por escoger.`, 'error'); return; }
+                            goToStep('extras');
+                        }}>
+                            Continuar <span className="material-icons-round">arrow_forward</span>
+                        </button>
                     )}
 
                     {currentStep === 'drinks' && (
-                         <button className="btn btn-primary" onClick={() => goToStep('extras')}>
-                             Continuar <span className="material-icons-round">arrow_forward</span>
-                         </button>
+                        <button className="btn btn-primary" onClick={() => goToStep('extras')}>
+                            Continuar <span className="material-icons-round">arrow_forward</span>
+                        </button>
                     )}
 
                     {currentStep === 'extras' && (

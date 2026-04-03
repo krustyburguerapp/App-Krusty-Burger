@@ -219,3 +219,92 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Premio de 7 Sellos - Estilos */
+.prize-banner-summary {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 4px 20px rgba(255, 165, 0, 0.5);
+    }
+}
+
+.prize-banner-summary .material-icons-round {
+    font-size: 32px;
+    color: white;
+}
+
+.prize-banner-summary strong {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+.prize-banner-summary p {
+    margin: 0;
+    font-size: 13px;
+    opacity: 0.95;
+}
+
+.checkout-summary-item.free-item {
+    background: #e8f5e9;
+    border-left: 3px solid #4CAF50;
+    padding-left: 12px;
+}
+
+.checkout-summary-item.free-item span:first-child {
+    color: #2e7d32;
+}
+
+.free-badge {
+    background: #4CAF50;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.checkout-summary-item.prize-discount {
+    color: #4CAF50;
+    font-weight: 600;
+}
+
+.checkout-summary-item.prize-discount span {
+    color: #4CAF50;
+}
+
+.checkout-savings-note {
+    background: #FFF3E0;
+    border: 1px solid #FFB74D;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #E65100;
+    margin-top: 12px;
+}
+
+.checkout-savings-note .material-icons-round {
+    font-size: 20px;
+    color: #FF9800;
+}

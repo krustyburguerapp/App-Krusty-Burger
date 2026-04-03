@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
@@ -21,9 +20,7 @@ if (!localStorage.getItem(CLEANUP_KEY)) {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-        <App />
-    </React.StrictMode>
+    <App />
 );
 
 // Register Service Worker for PWA (only in production)

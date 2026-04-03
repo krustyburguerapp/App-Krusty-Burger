@@ -35,13 +35,31 @@ const ProductCard = memo(function ProductCard({ product, index = 0, onSelect }) 
                         </div>
                     )}
                     {product.featured && <span className="product-badge-featured">⭐ Destacado</span>}
+                    {product.promoActive && product.promoPrice && (
+                        <span className="product-badge-promo">🔥 Promo</span>
+                    )}
                     {!product.available && <div className="product-badge-unavailable">No disponible</div>}
                 </div>
                 <div className="product-card-body">
                     <h4 className="product-card-name">{product.name}</h4>
                     <p className="product-card-desc">{product.description}</p>
                     <div className="product-card-footer">
-                        <span className="product-card-price">${product.price.toLocaleString('es-CO')}</span>
+                        <div className="product-card-price-container">
+                            {product.promoActive && product.promoPrice ? (
+                                <>
+                                    <span className="product-card-price product-card-price-original">
+                                        ${product.price.toLocaleString('es-CO')}
+                                    </span>
+                                    <span className="product-card-price product-card-price-promo">
+                                        ${product.promoPrice.toLocaleString('es-CO')}
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="product-card-price">
+                                    ${product.price.toLocaleString('es-CO')}
+                                </span>
+                            )}
+                        </div>
                         <button
                             className={`btn btn-primary btn-sm product-add-btn ${added ? 'product-added' : ''}`}
                             onClick={handleSelect}

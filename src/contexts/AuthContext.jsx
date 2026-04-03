@@ -24,15 +24,11 @@ export function AuthProvider({ children }) {
             return;
         }
 
-        console.time('onAuthStateChanged_trigger');
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            console.timeEnd('onAuthStateChanged_trigger');
-            console.time('AuthContext_TotalProcess');
             if (firebaseUser) {
                 // PURGA AUTOMÁTICA DE SESIONES DE INVITADOS RESIDUALES:
                 // Si el navegador recuerda un inicio de sesión anónimo antiguo, lo expulsa.
                 if (firebaseUser.isAnonymous) {
-                    console.warn('⚠️ Sesión anónima antigua detectada en caché. Expulsando usuario force...');
                     signOut(auth);
                     setUser(null);
                     setUserData(null);
@@ -41,12 +37,10 @@ export function AuthProvider({ children }) {
                     return;
                 }
 
-                console.log('User found in auth state:', firebaseUser.uid);
                 setUser(firebaseUser);
                 setIsAdmin(firebaseUser.email === ADMIN_EMAIL);
 
                 try {
-                    console.time('Firestore_CacheCheck');
                     const userDocRef = doc(db, 'users', firebaseUser.uid);
 
                     let userDataFromCache = null;
@@ -67,16 +61,13 @@ export function AuthProvider({ children }) {
                             setUserData(enrichUserData(userDataFromCache));
                             // ELIMINAMOS EL SPINNER INMEDIATAMENTE
                             setLoading(false);
-                            console.log('✅ Perfil cargado desde caché al instante');
                         }
                     } catch (cacheError) {
-                        console.log('ℹ️ Caché vacío o no disponible, buscando en servidor...');
+                        // Caché no disponible, buscando en servidor...
                     }
-                    console.timeEnd('Firestore_CacheCheck');
 
                     // 2. RECUPERACIÓN / ACTUALIZACIÓN EN SEGUNDO PLANO
                     const fetchFromServer = async () => {
-                        console.time('Firestore_ServerFetch');
                         const serverPromise = getDoc(userDocRef);
 
                         let timeoutId;
@@ -89,18 +80,13 @@ export function AuthProvider({ children }) {
                         try {
                             const userDoc = userDataFromCache ? await serverPromise : await Promise.race([serverPromise, timeoutPromise]);
                             clearTimeout(timeoutId);
-                            console.timeEnd('Firestore_ServerFetch');
 
                             if (userDoc.exists()) {
                                 const serverData = userDoc.data();
-                                
+
                                 // 🔄 SINCRONIZAR EMAIL DE GOOGLE AUTOMÁTICAMENTE
                                 // Si el email de Google es diferente al guardado, actualizarlo
                                 if (firebaseUser.email && serverData.email !== firebaseUser.email) {
-                                    console.log('📧 [Auth] Actualizando email de Google:', {
-                                        old: serverData.email,
-                                        new: firebaseUser.email
-                                    });
                                     const userDocRef = doc(db, 'users', firebaseUser.uid);
                                     await updateDoc(userDocRef, {
                                         email: firebaseUser.email,
@@ -108,7 +94,7 @@ export function AuthProvider({ children }) {
                                     });
                                     serverData.email = firebaseUser.email;
                                 }
-                                
+
                                 setUserData(enrichUserData(serverData)); // Actualiza datos silenciamente si el caché era viejo
                                 if (!userDataFromCache) setLoading(false);
                             } else {
@@ -128,16 +114,13 @@ export function AuthProvider({ children }) {
                                 };
                                 await setDoc(userDocRef, newUserData);
                                 setUserData(newUserData);
-                                console.log('✅ Nuevo perfil guardado');
                                 if (!userDataFromCache) setLoading(false);
                             }
                         } catch (serverError) {
                             clearTimeout(timeoutId);
-                            console.error('⚠️ Error/Timeout en servidor:', serverError.message);
 
                             // Si no teníamos caché y falló todo lo demás, creamos un perfil temporal en memoria para NO bloquear la app
                             if (!userDataFromCache) {
-                                console.log('⚠️ Usando perfil de emergencia por fallo de servidor');
                                 setUserData(enrichUserData({
                                     role: firebaseUser.email === ADMIN_EMAIL ? 'admin' : 'user',
                                     hasCompletedProfile: false
@@ -150,7 +133,6 @@ export function AuthProvider({ children }) {
                     fetchFromServer();
 
                 } catch (error) {
-                    console.error('Error fatal detectado:', error);
                     setLoading(false);
                 }
             } else {
@@ -159,7 +141,6 @@ export function AuthProvider({ children }) {
                 setIsAdmin(false);
                 setLoading(false);
             }
-            console.timeEnd('AuthContext_TotalProcess');
         });
 
         return () => unsubscribe();

@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
 import { useAuth } from './AuthContext';
-import { addStamp, getUserStamps } from '../utils/loyaltySystem';
+import { addStamp, getUserStamps, confirmPrizeRedemption, getPrizeRedemptionState } from '../utils/loyaltySystem';
 
 const OrdersContext = createContext(null);
 
@@ -102,6 +102,13 @@ export function OrdersProvider({ children }) {
             const currentOrders = JSON.parse(localStorage.getItem('demoKrustyOrders') || '[]');
             localStorage.setItem('demoKrustyOrders', JSON.stringify([...currentOrders, newOrder]));
             setOrders(prev => [newOrder, ...prev]);
+
+            // Verificar si es pedido de premio (demo)
+            if (orderData.isPrizeOrder) {
+                // En demo mode, solo limpiamos el estado
+                localStorage.removeItem('krustyPrizeRedemption');
+            }
+
             return { success: true, orderId: newOrder.id };
         }
 
@@ -124,10 +131,41 @@ export function OrdersProvider({ children }) {
                 updatedAt: now
             };
 
+            // VERIFICAR SI ES PEDIDO DE PREMIO
+            const redemptionState = getPrizeRedemptionState();
+            if (orderData.isPrizeOrder && redemptionState) {
+                orderToSave.isPrizeOrder = true;
+                orderToSave.prizeClaimData = {
+                    month: redemptionState.month,
+                    stampsAtClaim: redemptionState.stampsAtStart
+                };
+            }
+
             // SIN caché persistente: addDoc va DIRECTO al servidor.
             // Cuando esta promesa resuelve, el pedido YA ESTÁ en Firestore.
             const docRef = await addDoc(collection(db, 'orders'), orderToSave);
             console.log('✅ Pedido creado en servidor:', docRef.id);
+
+            // SI ES PEDIDO DE PREMIO, CONFIRMAR Y REINICIAR SELLOS AUTOMÁTICAMENTE
+            if (orderData.isPrizeOrder && redemptionState) {
+                console.log('🏆 [OrdersContext] Confirmando reclamo de premio...', {
+                    userId: user.uid,
+                    orderId: docRef.id
+                });
+
+                const result = await confirmPrizeRedemption(user.uid, docRef.id);
+
+                if (result.success) {
+                    console.log('✅ [OrdersContext] Premio confirmado y sellos reiniciados:', {
+                        claimId: result.claimId
+                    });
+                } else {
+                    console.error('❌ [OrdersContext] Error al confirmar premio:', result.error);
+                    // NOTA: El pedido ya se creó, pero el reinicio falló
+                    // Esto es raro pero podría pasar. El admin puede reiniciar manualmente.
+                }
+            }
+
             return { success: true, orderId: docRef.id };
         } catch (error) {
             console.error('Error al crear pedido:', error);
@@ -163,7 +201,7 @@ export function OrdersProvider({ children }) {
         try {
             const orderRef = doc(db, 'orders', orderId);
             const order = orders.find((o) => o.id === orderId);
-            
+
             const updateData = {
                 status: newStatus,
                 isNew: false,
@@ -181,7 +219,7 @@ export function OrdersProvider({ children }) {
             if (metadata.preparationTime !== undefined) {
                 updateData.preparationTime = metadata.preparationTime;
             }
-            
+
             if (newStatus === 'delivered' && order && order.createdAt) {
                 updateData.actualTime = calculateActualTime(order.createdAt);
 
@@ -190,6 +228,8 @@ export function OrdersProvider({ children }) {
 
                 // Agregar sello de fidelidad al usuario
                 const userId = order.userId;
+                let stampResult = null;
+
                 if (userId) {
                     console.log('🎯 [OrdersContext] Intentando agregar sello por pedido delivered:', {
                         userId,
@@ -197,7 +237,7 @@ export function OrdersProvider({ children }) {
                         createdAt: order.createdAt
                     });
 
-                    const stampResult = await addStamp(userId, order.createdAt);
+                    stampResult = await addStamp(userId, order.createdAt);
 
                     console.log('📍 [OrdersContext] Resultado de addStamp:', stampResult);
 
@@ -222,7 +262,7 @@ export function OrdersProvider({ children }) {
 
                 return { success: true, stampAdded: stampResult };
             }
-            
+
             await updateDoc(orderRef, updateData);
             return { success: true };
         } catch (error) {

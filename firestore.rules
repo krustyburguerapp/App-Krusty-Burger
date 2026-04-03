@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Función auxiliar para verificar si es admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Colección users: Los usuarios pueden leer/escribir su propio perfil
+    // Admins pueden leer/escribir todos los perfiles
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && 
+                      (request.auth.uid == userId || isAdmin());
+    }
+    
+    // Colección orders: 
+    // - Usuarios pueden crear y leer sus propios pedidos
+    // - Admins pueden leer/escribir todos los pedidos
+    match /orders/{orderId} {
+      allow create: if request.auth != null &&
+                       request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null &&
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if request.auth != null && isAdmin();
+    }
+    
+    // Colección loyaltyStamps:
+    // - Usuarios pueden leer sus propios sellos
+    // - Solo admins pueden escribir (agregar/reiniciar sellos)
+    match /loyaltyStamps/{stampId} {
+      allow read: if request.auth != null &&
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Colección prizeClaims (NUEVA):
+    // - Usuarios pueden crear sus propios reclamos
+    // - Usuarios pueden leer sus propios reclamos
+    // - Admins pueden leer/escribir todos los reclamos
+    match /prizeClaims/{claimId} {
+      allow create: if request.auth != null &&
+                       request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null &&
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if request.auth != null && isAdmin();
+    }
+    
+    // Colección products:
+    // - Todos pueden leer (para el menú)
+    // - Solo admins pueden escribir
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Colección settings:
+    // - Todos pueden leer (para verificar horario y promociones)
+    // - Solo admins pueden escribir
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+    
+    // Colección deliveryPricing:
+    // - Todos pueden leer (para mostrar precios)
+    // - Solo admins pueden escribir
+    match /deliveryPricing/{pricingId} {
+      allow read: if true;
+      allow write: if request.auth != null && isAdmin();
+    }
+  }
+}

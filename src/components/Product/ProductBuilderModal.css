@@ -52,12 +52,28 @@
 
 .pb-price-row {
     margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .pb-price {
     font-size: 1.1rem;
     font-weight: 800;
     color: var(--color-primary);
+}
+
+.pb-price-original {
+    font-size: 0.9rem;
+    color: var(--color-text-hint);
+    text-decoration: line-through;
+    font-weight: 500;
+}
+
+.pb-price-promo {
+    font-size: 1.3rem;
+    color: #FFD700;
+    font-weight: 800;
 }
 
 .pb-base-qty {
@@ -171,6 +187,7 @@
     margin-right: 12px;
     flex-shrink: 0;
 }
+
 .pb-item-img-wrapper img {
     width: 100%;
     height: 100%;
@@ -190,7 +207,8 @@
     padding: 16px;
     border-radius: var(--radius-md);
     border: 1px dashed var(--color-primary-light);
-    margin-top: -4px; /* Pegarlo un poco a los combos */
+    margin-top: -4px;
+    /* Pegarlo un poco a los combos */
 }
 
 .pb-label {
@@ -247,6 +265,7 @@
     margin-bottom: 8px;
     flex-shrink: 0;
 }
+
 .pb-grid-img-wrapper img {
     width: 100%;
     height: 100%;
@@ -359,34 +378,34 @@
     .pb-grid {
         grid-template-columns: repeat(2, 1fr);
     }
-    
+
     .pb-footer {
         grid-template-columns: 1fr;
         gap: 12px;
         padding: 16px;
     }
-    
+
     .pb-footer-total {
         order: 1;
         align-items: center;
         padding: 10px 14px;
     }
-    
+
     .pb-footer-total span:first-child {
         font-size: 11px;
     }
-    
+
     .pb-footer-price {
         font-size: 1.4rem;
     }
-    
+
     .pb-footer .btn {
         order: 2;
         width: 100%;
         padding: 14px 18px;
         font-size: 15px;
     }
-    
+
     /* En móvil, el botón "Atrás" va arriba del total */
     .pb-footer .btn-outline {
         order: 0;

@@ -1,21 +1,24 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrders, getStatusLabel, getStatusColor } from '../../contexts/OrdersContext';
 import OrderTracker from '../../components/Order/OrderTracker';
 import FloatingEmojis, { getInsistEmoji, getInsistLabel } from '../../components/UI/FloatingEmojis';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
-import { getUserStamps, hasUserClaimedPrize } from '../../utils/loyaltySystem';
+import { getUserStamps, hasUserClaimedPrize, startPrizeRedemption } from '../../utils/loyaltySystem';
 import './OrderTracking.css';
 
 export default function OrderTracking() {
+    const navigate = useNavigate();
     const { user, userData } = useAuth(); // Agregar userData al hook
     const { orders, loading, error, sendInsist } = useOrders();
     const [insistTriggers, setInsistTriggers] = useState({});
     const [loyaltyStamps, setLoyaltyStamps] = useState(0);
     const [prizeClaimed, setPrizeClaimed] = useState(false);
     const [loadingLoyalty, setLoadingLoyalty] = useState(true);
+    const [claimingPrize, setClaimingPrize] = useState(false);
 
     const handleInsistReal = async (orderId) => {
         setInsistTriggers(prev => ({ ...prev, [orderId]: (prev[orderId] || 0) + 1 }));
@@ -70,7 +73,7 @@ export default function OrderTracking() {
         }
     }, [loyaltyStamps, activeOrders.length, prizeClaimed]);
 
-    const handleLoyaltyClick = () => {
+    const handleLoyaltyClick = async () => {
         if (prizeClaimed) {
             Swal.fire({
                 title: 'Premio ya Reclamado 🎉',
@@ -79,27 +82,73 @@ export default function OrderTracking() {
                 confirmButtonColor: 'var(--color-primary)'
             });
         } else if (loyaltyStamps >= 7) {
-            Swal.fire({
+            const result = await Swal.fire({
                 title: '¡FELICIDADES! 🏆',
-                html: 'Has completado tus 7 sellos este mes.<br><br><b>¡UNA COMIDA INDIVIDUAL GRATIS + BEBIDA PEQUEÑA!</b><br><br><small>Comunícate por WhatsApp con el ID de tu último pedido para reclamarla.<br><br>⚠️ Los adicionales van por separado.</small>',
+                html: `
+                    <div style="text-align: left; padding: 20px 0;">
+                        <p style="margin-bottom: 15px;">
+                            Has completado tus 7 sellos este mes.
+                        </p>
+                        <div style="background: linear-gradient(135deg, #FFD700, #FFA500); padding: 15px; border-radius: 10px; color: white; text-align: center; margin: 15px 0;">
+                            <h3 style="margin: 0 0 10px 0;">🍔 COMIDA GRATIS</h3>
+                            <p style="margin: 0; font-size: 14px;">Comida Individual + Bebida Pequeña</p>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin-top: 15px;">
+                            ⚠️ Los adicionales van por separado.
+                        </p>
+                    </div>
+                `,
                 icon: 'success',
-                confirmButtonText: 'Reclamar mi comida gratis',
-                confirmButtonColor: 'var(--color-primary)',
                 showCancelButton: true,
-                cancelButtonText: 'Cerrar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Obtener email del usuario (primero de userData, luego de user.email como fallback)
-                    const userEmail = userData?.email || user?.email || 'no-disponible';
-                    const lastOrder = orders[0]?.id || 'no-disponible';
-                    const userName = userData?.displayName || user?.displayName || 'Usuario';
-                    
-                    const message = `Hola! 👋%0A%0A🎉 *COMPLETÉ MIS 7 SELLOS KRUSTY* y quiero reclamar mi comida gratis.%0A%0A👤 *Nombre:* ${userName}%0A📧 *Email:* ${userEmail}%0A📋 *ID último pedido:* ${lastOrder}%0A%0A⚠️ *Los adicionales van por separado.*`;
-
-                    // Abrir WhatsApp para reclamar
-                    window.open(`https://wa.me/573025712968?text=${message}`, '_blank');
-                }
+                confirmButtonText: '🎁 Reclamar mi premio AHORA',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: 'var(--color-primary)',
+                cancelButtonColor: '#666',
+                reverseButtons: true
             });
+
+            if (result.isConfirmed) {
+                // Confirmación final antes de reclamar
+                const confirm = await Swal.fire({
+                    title: '¿Confirmar reclamo?',
+                    html: `
+                        <p style="margin-bottom: 15px;">
+                            Estás a punto de reclamar tu premio de 7 sellos.
+                        </p>
+                        <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196F3;">
+                            <p style="margin: 0; font-size: 14px;">
+                                ✅ Serás llevado al menú<br>
+                                ✅ Debes elegir 1 comida individual + 1 bebida pequeña<br>
+                                ✅ Esos items salen GRATIS<br>
+                                ✅ Tus sellos se reiniciarán al confirmar el pedido
+                            </p>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, ir al menú',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: 'var(--color-primary)',
+                    cancelButtonColor: '#666'
+                });
+
+                if (confirm.isConfirmed) {
+                    // Iniciar proceso de reclamo
+                    const redemptionResult = await startPrizeRedemption(user.uid, userData);
+
+                    if (redemptionResult.success) {
+                        // Redirigir al menú
+                        navigate('/menu');
+                    } else {
+                        await Swal.fire({
+                            title: 'Error al iniciar reclamo',
+                            text: redemptionResult.error || 'Hubo un error',
+                            icon: 'error',
+                            confirmButtonColor: 'var(--color-primary)'
+                        });
+                    }
+                }
+            }
         } else {
             Swal.fire({
                 title: 'Programa de Fidelidad 🍔',
@@ -166,8 +215,8 @@ export default function OrderTracking() {
                                 <div>
                                     <h3 className="loyalty-title">Sellos Krusty</h3>
                                     <p className="loyalty-subtitle">
-                                        {loyaltyStamps >= 7 
-                                            ? '¡Completaste los 7 sellos!' 
+                                        {loyaltyStamps >= 7
+                                            ? '¡Completaste los 7 sellos!'
                                             : loyaltyStamps === 6
                                                 ? '¡Falta 1 sello para tu comida gratis!'
                                                 : `Faltan ${7 - loyaltyStamps} sellos para tu comida gratis`}
@@ -238,7 +287,7 @@ function InsistButton({ order, onInsistReal }) {
             setClicks(0);
             onInsistReal(order.id);
             if (level + 1 >= MAX_LEVEL) {
-                 Swal.fire({
+                Swal.fire({
                     title: '¡GANASTE!',
                     text: 'Eres el cliente más intenso del día de hoy jeje 🏆',
                     icon: 'success',
@@ -263,14 +312,14 @@ function InsistButton({ order, onInsistReal }) {
                 marginTop: '10px', width: '100%', position: 'relative', overflow: 'hidden', padding: '12px',
                 border: 'none', borderRadius: '12px', cursor: 'pointer',
                 background: displayLevel <= 1 ? '#FFF8E1' :
-                            displayLevel === 2 ? '#FFF9C4' :
-                            displayLevel === 3 ? '#FFCDD2' :
+                    displayLevel === 2 ? '#FFF9C4' :
+                        displayLevel === 3 ? '#FFCDD2' :
                             displayLevel === 4 ? '#FF5252' :
-                            'linear-gradient(135deg, #FFD700, #FF8C00)',
+                                'linear-gradient(135deg, #FFD700, #FF8C00)',
                 color: displayLevel === 4 ? '#fff' : '#333'
             }}
         >
-            <div className="insist-progress-fill" style={{ 
+            <div className="insist-progress-fill" style={{
                 width: `${progress}%`,
                 background: displayLevel === 4 || displayLevel === 5 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'
             }} />
