@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '../../contexts/ProductsContext';
 import ProductCard from '../../components/Product/ProductCard';
 import ProductBuilderModal from '../../components/Product/ProductBuilderModal';
@@ -6,7 +6,7 @@ import CategoryFilter from '../../components/Product/CategoryFilter';
 import Spinner from '../../components/UI/Spinner';
 import EmptyState from '../../components/UI/EmptyState';
 import PrizeRedemptionBanner from '../../components/UI/PrizeRedemptionBanner';
-import { getStoreStatus, getBusinessHoursText, getNextOpenTime } from '../../utils/businessHours';
+import { getRestaurantSettings, isRestaurantOpen, getBusinessHoursText, formatTime12 } from '../../config/restaurantSettings';
 import { INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import './Menu.css';
 
@@ -15,7 +15,15 @@ export default function Menu() {
     const [activeCategory, setActiveCategory] = useState('individual');
     const [search, setSearch] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const storeStatus = getStoreStatus();
+    const [restaurantSettings, setRestaurantSettings] = useState(null);
+
+    useEffect(() => {
+        getRestaurantSettings()
+            .then(setRestaurantSettings)
+            .catch(err => console.error('Error cargando configuración:', err));
+    }, []);
+
+    const storeIsOpen = restaurantSettings ? isRestaurantOpen(restaurantSettings) : true;
 
     const { featuredList, groupedProducts, regularList, hasResults } = useMemo(() => {
         const filtered = products.filter((p) => {
@@ -71,22 +79,19 @@ export default function Menu() {
             <div className="container">
                 <PrizeRedemptionBanner />
 
-                {storeStatus === 'closed' && (
+                {!storeIsOpen && restaurantSettings && (
                     <div className="store-closed-banner">
                         <span className="material-icons-round">schedule</span>
                         <div>
                             <strong>Estamos cerrados</strong>
-                            <p>Domicilio: {getBusinessHoursText('delivery')} | Recoger: {getBusinessHoursText('pickup')}</p>
-                            <p>Abrimos {getNextOpenTime()}</p>
-                        </div>
-                    </div>
-                )}
-                {storeStatus === 'pickup-only' && (
-                    <div className="store-pickup-banner">
-                        <span className="material-icons-round">info</span>
-                        <div>
-                            <strong>Solo recogida en local</strong>
-                            <p>El domicilio cierra a las {getBusinessHoursText('delivery').split(' - ')[1]}</p>
+                            {restaurantSettings.closedToday ? (
+                                <p>Hoy no hay servicio. Vuelve mañana.</p>
+                            ) : (
+                                <>
+                                    <p>Horario: {getBusinessHoursText(restaurantSettings)}</p>
+                                    <p>Abrimos a las {formatTime12(restaurantSettings.openingTime)}</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

@@ -3,13 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { useOrders } from '../../contexts/OrdersContext';
-import { isStoreOpen, getBusinessHoursText, getClosedMessage } from '../../utils/businessHours';
 import { calculateEstimatedTime } from '../../utils/estimatedTime';
 import { showToast } from '../../utils/notifications';
 import { calculateDeliveryInfo, MAX_DELIVERY_DISTANCE_KM } from '../../utils/deliveryCost';
 import { STORE_LOCATION } from '../../config/storeLocation';
 import { getPrizeRedemptionState } from '../../utils/loyaltySystem';
-import { getRestaurantSettings, isRestaurantOpen, getRestaurantStatus } from '../../config/restaurantSettings';
+import { getRestaurantSettings, getRestaurantStatus, getBusinessHoursText, getClosedMessage } from '../../config/restaurantSettings';
 import Spinner from '../../components/UI/Spinner';
 import './Checkout.css';
 
@@ -63,7 +62,7 @@ export default function Checkout() {
     const cashAmountRef = useRef(null);
 
     const hasProfile = userData?.hasCompletedProfile && userData?.phone;
-    const storeOpen = isStoreOpen(deliveryType) && restaurantStatus.isOpen;
+    const storeOpen = restaurantStatus.isOpen;
 
     // Cargar configuración del restaurante
     useEffect(() => {
@@ -246,8 +245,9 @@ export default function Checkout() {
 
         // Verificar si la tienda está abierta
         if (!storeOpen) {
-            const closedMsg = getClosedMessage(deliveryType);
-            showToast(`🕒 ${closedMsg}. Horario: ${getBusinessHoursText(deliveryType)}`, 'error', 6000);
+            const closedMsg = getClosedMessage(restaurantSettings);
+            const hoursText = getBusinessHoursText(restaurantSettings);
+            showToast(`🕒 ${closedMsg}${hoursText ? `. Horario: ${hoursText}` : ''}`, 'error', 6000);
             return;
         }
 
@@ -334,8 +334,8 @@ export default function Checkout() {
                                 {restaurantSettings?.closedToday
                                     ? 'El restaurante no está atendiendo hoy. Vuelve mañana.'
                                     : restaurantSettings
-                                        ? `Horario: ${restaurantSettings.openingTime} - ${restaurantSettings.closingTime}`
-                                        : getBusinessHoursText(deliveryType)
+                                        ? `Horario: ${getBusinessHoursText(restaurantSettings)}`
+                                        : ''
                                 }
                             </p>
                         </div>

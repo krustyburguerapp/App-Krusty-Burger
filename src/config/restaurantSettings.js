@@ -105,37 +105,67 @@ export async function saveRestaurantSettings(settings, userId) {
 }
 
 /**
- * Verifica si el restaurante está abierto actualmente
- * @param {Object} settings - Configuración del restaurante
- * @returns {boolean} true si está abierto
+ * Devuelve la hora actual en zona horaria de Bogotá (Colombia).
+ * Usar en lugar de `new Date()` para que el cálculo de apertura/cierre
+ * no dependa de la zona horaria del navegador del cliente.
  */
-export function isRestaurantOpen(settings) {
-    if (!settings) return true; // Por defecto, abierto
-
-    // Si está cerrado hoy, siempre retorna false
-    if (settings.closedToday) return false;
-
+function getColombiaTime() {
     const now = new Date();
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // Minutos desde medianoche
-
-    const [openHour, openMin] = settings.openingTime.split(':').map(Number);
-    const [closeHour, closeMin] = settings.closingTime.split(':').map(Number);
-
-    const openTime = openHour * 60 + openMin;
-    const closeTime = closeHour * 60 + closeMin;
-
-    return currentTime >= openTime && currentTime < closeTime;
+    const colombiaStr = now.toLocaleString('en-US', { timeZone: 'America/Bogota' });
+    return new Date(colombiaStr);
 }
 
 /**
- * Obtiene el mensaje de estado del restaurante
- * @param {Object} settings - Configuración del restaurante
- * @returns {Object} { isOpen, message, nextChange }
+ * Convierte "HH:mm" a minutos desde medianoche.
+ */
+function parseTimeToMinutes(time) {
+    const [h, m] = String(time).split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Formatea "HH:mm" a "h:mm AM/PM"
+ */
+export function formatTime12(time24) {
+    if (!time24) return '';
+    const [hours, minutes] = String(time24).split(':');
+    const h = parseInt(hours);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${minutes} ${period}`;
+}
+
+/**
+ * Verifica si el restaurante está abierto actualmente.
+ * Soporta cierre después de medianoche (ej: abre 17:00, cierra 02:00).
+ */
+export function isRestaurantOpen(settings) {
+    if (!settings) return true; // Por defecto, abierto si aún no cargaron los settings
+
+    if (settings.closedToday) return false;
+
+    const now = getColombiaTime();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    const openTime = parseTimeToMinutes(settings.openingTime);
+    const closeTime = parseTimeToMinutes(settings.closingTime);
+
+    // Caso 1: horario normal (ej: 11:00 - 22:00) → openTime < closeTime
+    if (closeTime > openTime) {
+        return currentTime >= openTime && currentTime < closeTime;
+    }
+
+    // Caso 2: cierre después de medianoche (ej: 17:00 - 02:00) → closeTime <= openTime
+    // Está abierto si estás después de openTime O antes de closeTime
+    return currentTime >= openTime || currentTime < closeTime;
+}
+
+/**
+ * Obtiene el mensaje de estado del restaurante para mostrar en la UI.
  */
 export function getRestaurantStatus(settings) {
     if (!settings) return { isOpen: true, message: 'Abierto' };
 
-    // Si está cerrado hoy
     if (settings.closedToday) {
         return {
             isOpen: false,
@@ -145,20 +175,53 @@ export function getRestaurantStatus(settings) {
     }
 
     const isOpen = isRestaurantOpen(settings);
+    const closingFormatted = formatTime12(settings.closingTime);
+    const openingFormatted = formatTime12(settings.openingTime);
 
     if (isOpen) {
-        const [closeHour, closeMin] = settings.closingTime.split(':').map(Number);
         return {
             isOpen: true,
-            message: `Abierto - Cerramos a las ${settings.closingTime}`,
-            nextChange: `Cierre: ${settings.closingTime}`
-        };
-    } else {
-        const [openHour, openMin] = settings.openingTime.split(':').map(Number);
-        return {
-            isOpen: false,
-            message: `Cerrado - Abrimos a las ${settings.openingTime}`,
-            nextChange: `Apertura: ${settings.openingTime}`
+            message: `Abierto - Cerramos a las ${closingFormatted}`,
+            nextChange: `Cierre: ${closingFormatted}`
         };
     }
+
+    return {
+        isOpen: false,
+        message: `Cerrado - Abrimos a las ${openingFormatted}`,
+        nextChange: `Apertura: ${openingFormatted}`
+    };
+}
+
+/**
+ * Texto del horario para mostrar al cliente (ej: "11:00 AM - 10:00 PM").
+ */
+export function getBusinessHoursText(settings) {
+    if (!settings) return '';
+    return `${formatTime12(settings.openingTime)} - ${formatTime12(settings.closingTime)}`;
+}
+
+/**
+ * Mensaje contextual cuando la tienda está cerrada.
+ */
+export function getClosedMessage(settings) {
+    if (!settings) return 'El restaurante está cerrado';
+    if (settings.closedToday) return 'Hoy no hay servicio. Vuelve mañana.';
+
+    const now = getColombiaTime();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    const openTime = parseTimeToMinutes(settings.openingTime);
+    const closeTime = parseTimeToMinutes(settings.closingTime);
+
+    // Para horarios que cruzan medianoche, si ya pasó el cierre, abrimos de nuevo a openingTime
+    if (closeTime <= openTime) {
+        if (currentTime >= closeTime && currentTime < openTime) {
+            return `Abrimos a las ${formatTime12(settings.openingTime)}`;
+        }
+    } else {
+        if (currentTime < openTime) {
+            return `Abrimos a las ${formatTime12(settings.openingTime)}`;
+        }
+    }
+    return `Pedidos hasta las ${formatTime12(settings.closingTime)}. Vuelve mañana a las ${formatTime12(settings.openingTime)}`;
 }
