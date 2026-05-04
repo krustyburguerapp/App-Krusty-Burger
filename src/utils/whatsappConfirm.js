@@ -27,7 +27,7 @@ export function generateOrderWhatsAppURL(order) {
     return `https://wa.me/${STORE_PHONE}?text=${message}`;
 }
 
-export function generateAdminWhatsAppURL(order, forceInitialMessage = false) {
+export function generateAdminWhatsAppURL(order, forceInitialMessage = false, nequiPaymentKey = '3234971723') {
     const cleanPhone = order.userPhone.replace(/\D/g, '');
     const formattedPhone = cleanPhone.startsWith('57') ? cleanPhone : `57${cleanPhone}`;
 
@@ -49,7 +49,7 @@ export function generateAdminWhatsAppURL(order, forceInitialMessage = false) {
             const cambio = order.cashAmount && order.cashAmount > order.total ? (order.cashAmount - order.total).toLocaleString('es-CO') : '0';
             template = `Hola!\nGracias por tu pedido en *Krusty Burger!*\n\nTu orden fue recibida correctamente y ya estamos preparandola con todo el sabor krusty.\n\n*Resumen de tu pedido*\n${itemsSummary}\n${notes}\n*Total: $${total}*\nTiempo estimado: ${time} minutos\nDireccion de entrega: ${address}\n\n*Pago en efectivo*\nNos indicaste que pagaras con $${pagaCon}\n\nTu cambio sera aproximadamente:\n$${cambio}\n\nNuestro domiciliario llevara el pedido hasta tu ubicacion.\n\nGracias por elegir *Krusty Burger!*\nEstamos cocinando algo brutal para ti.`;
         } else if (order.paymentMethod === 'nequi') {
-            template = `Hola!\nGracias por tu pedido en *Krusty Burger!*\n\nYa estamos preparando tu pedido.\n\n*Resumen de tu pedido*\n${itemsSummary}\n${notes}\n*Total: $${total}*\nTiempo estimado: ${time} minutos\nDireccion de entrega: ${address}\n\n*Pago por Nequi o Daviplata*\n\nPuedes realizar el pago a la siguiente llave:\n\n*3234971723*\n\nUna vez realizado el pago, por favor envianos el comprobante por este chat para confirmar tu pedido.\n\nCuando el pago sea confirmado, tu pedido saldra inmediatamente.\n\nGracias por comprar en *Krusty Burger!*\nEstamos preparando algo delicioso para ti.`;
+            template = `Hola!\nGracias por tu pedido en *Krusty Burger!*\n\nYa estamos preparando tu pedido.\n\n*Resumen de tu pedido*\n${itemsSummary}\n${notes}\n*Total: $${total}*\nTiempo estimado: ${time} minutos\nDireccion de entrega: ${address}\n\n*Pago por Nequi o Daviplata*\n\nPuedes realizar el pago a la siguiente llave:\n\n*${nequiPaymentKey}*\n\nUna vez realizado el pago, por favor envianos el comprobante por este chat para confirmar tu pedido.\n\nCuando el pago sea confirmado, tu pedido saldra inmediatamente.\n\nGracias por comprar en *Krusty Burger!*\nEstamos preparando algo delicioso para ti.`;
         } else if (order.paymentMethod === 'tarjeta') {
             template = `Hola!\nGracias por tu pedido en *Krusty Burger!*\n\nTu orden fue recibida y ya esta en preparacion.\n\n*Resumen de tu pedido*\n${itemsSummary}\n${notes}\n*Total: $${total}*\nTiempo estimado: ${time} minutos\nDireccion de entrega: ${address}\n\n*Pago con tarjeta*\n\nNuestro domiciliario llevara un datafono Bold para que puedas realizar el pago con tu tarjeta debito o credito al momento de la entrega.\n\nSolo ten tu tarjeta lista cuando llegue el pedido.\n\nGracias por elegir *Krusty Burger!*\nTu hamburguesa ya esta en camino a la parrilla.`;
         } else if (order.paymentMethod === 'pse') {

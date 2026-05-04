@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOrders, getStatusLabel, getStatusIcon, getStatusColor } from '../../contexts/OrdersContext';
 import { generateAdminWhatsAppURL } from '../../utils/whatsappConfirm';
+import { getRestaurantSettings, DEFAULT_RESTAURANT_SETTINGS } from '../../config/restaurantSettings';
 import { playNotificationSound, showToast, startOrderAlarm, stopOrderAlarm } from '../../utils/notifications';
 import { getInsistEmoji } from '../../components/UI/FloatingEmojis';
 import EmptyState from '../../components/UI/EmptyState';
@@ -71,6 +72,9 @@ export default function AdminOrders() {
 
     const [now, setNow] = useState(Date.now());
 
+    // Llave Nequi configurable desde el panel de Configuración
+    const [nequiPaymentKey, setNequiPaymentKey] = useState(DEFAULT_RESTAURANT_SETTINGS.nequiPaymentKey);
+
     // Cargar domiciliarios guardados al iniciar
     useEffect(() => {
         const saved = localStorage.getItem('krusty_drivers');
@@ -81,6 +85,15 @@ export default function AdminOrders() {
                 console.error('Error cargando domiciliarios:', e);
             }
         }
+    }, []);
+
+    // Cargar la llave Nequi desde Firestore
+    useEffect(() => {
+        getRestaurantSettings()
+            .then(s => {
+                if (s?.nequiPaymentKey) setNequiPaymentKey(s.nequiPaymentKey);
+            })
+            .catch(err => console.error('Error cargando llave Nequi:', err));
     }, []);
 
     // Timer para recalcular tiempos de espera de los pedidos (cada segundo)
@@ -310,7 +323,7 @@ ${paymentInfo}
     const sendReconfirmation = () => {
         if (!orderToReconfirm) return;
 
-        const url = generateAdminWhatsAppURL(orderToReconfirm, true);
+        const url = generateAdminWhatsAppURL(orderToReconfirm, true, nequiPaymentKey);
         window.open(url, '_blank');
 
         setReconfirmModalOpen(false);
@@ -515,7 +528,7 @@ ${paymentInfo}
                                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 {order.status === 'pending' && (
                                                     <a
-                                                        href={generateAdminWhatsAppURL(order)}
+                                                        href={generateAdminWhatsAppURL(order, false, nequiPaymentKey)}
                                                         target="_blank" rel="noopener noreferrer"
                                                         className="btn btn-sm btn-primary"
                                                         style={{ display: 'flex', alignItems: 'center', gap: '6px' }}

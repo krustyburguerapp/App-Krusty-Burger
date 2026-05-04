@@ -17,6 +17,9 @@ export const DEFAULT_RESTAURANT_SETTINGS = {
     // Promociones
     freeDeliveryPromo: false,  // Si los domicilios son gratis hoy
 
+    // Métodos de pago
+    nequiPaymentKey: '3234971723',  // Llave Nequi/Daviplata que se envía al cliente por WhatsApp
+
     // Metadata
     updatedAt: null,
     updatedBy: null
@@ -89,9 +92,10 @@ export async function saveRestaurantSettings(settings, userId) {
             closedTodayDate: settings.closedToday ? today : null, // Guardar fecha solo si está activo
             deliveryEnabled: settings.deliveryEnabled,
             freeDeliveryPromo: settings.freeDeliveryPromo,
+            nequiPaymentKey: settings.nequiPaymentKey || DEFAULT_RESTAURANT_SETTINGS.nequiPaymentKey,
             updatedAt: new Date().toISOString(),
             updatedBy: userId
-        });
+        }, { merge: true });
 
         return { success: true };
     } catch (error) {

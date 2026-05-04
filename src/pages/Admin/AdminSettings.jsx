@@ -15,7 +15,8 @@ export default function AdminSettings() {
         closedToday: false,
         closedTodayDate: null,
         deliveryEnabled: true,
-        freeDeliveryPromo: false
+        freeDeliveryPromo: false,
+        nequiPaymentKey: DEFAULT_RESTAURANT_SETTINGS.nequiPaymentKey
     });
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -34,7 +35,8 @@ export default function AdminSettings() {
                 closedToday: data.closedToday || false,
                 closedTodayDate: data.closedTodayDate || null,
                 deliveryEnabled: data.deliveryEnabled !== undefined ? data.deliveryEnabled : true,
-                freeDeliveryPromo: data.freeDeliveryPromo || false
+                freeDeliveryPromo: data.freeDeliveryPromo || false,
+                nequiPaymentKey: data.nequiPaymentKey || DEFAULT_RESTAURANT_SETTINGS.nequiPaymentKey
             });
         } catch (error) {
             console.error('Error al cargar configuración:', error);
@@ -56,6 +58,16 @@ export default function AdminSettings() {
         setSettings(prev => ({
             ...prev,
             [field]: !prev[field]
+        }));
+        setHasChanges(true);
+    };
+
+    const handleNequiKeyChange = (value) => {
+        // Solo permitir dígitos, espacios y máx ~15 caracteres (algunas llaves son alias)
+        const cleaned = value.replace(/[^\d\s]/g, '').slice(0, 15);
+        setSettings(prev => ({
+            ...prev,
+            nequiPaymentKey: cleaned
         }));
         setHasChanges(true);
     };
@@ -303,6 +315,54 @@ export default function AdminSettings() {
                     </div>
                 </div>
 
+                {/* Método de Pago Nequi */}
+                <div className="settings-section">
+                    <h3 className="settings-section-title">
+                        <span className="material-icons-round">account_balance_wallet</span>
+                        Método de Pago Nequi / Daviplata
+                    </h3>
+
+                    <div className="settings-card">
+                        <div className="settings-toggle-info" style={{ marginBottom: 'var(--spacing-md)' }}>
+                            <div className="settings-toggle-header">
+                                <span className="material-icons-round" style={{ color: 'var(--color-primary)' }}>vpn_key</span>
+                                <h4>Llave de Pago</h4>
+                            </div>
+                            <p className="settings-toggle-description">
+                                Este es el número o llave que se le envía al cliente por WhatsApp cuando elige pagar con Nequi o Daviplata.
+                                Cámbialo aquí cuando cambies de cuenta.
+                            </p>
+                        </div>
+
+                        <div className="settings-time-input" style={{ width: '100%' }}>
+                            <label htmlFor="nequiPaymentKey">
+                                <span className="material-icons-round">phone_iphone</span>
+                                Llave Nequi / Daviplata
+                            </label>
+                            <input
+                                id="nequiPaymentKey"
+                                type="tel"
+                                inputMode="numeric"
+                                className="input-field"
+                                value={settings.nequiPaymentKey}
+                                onChange={(e) => handleNequiKeyChange(e.target.value)}
+                                placeholder="3234971723"
+                                maxLength={15}
+                            />
+                            <small className="settings-time-preview">
+                                Vista previa en el mensaje: <strong>*{settings.nequiPaymentKey || '...'}*</strong>
+                            </small>
+                        </div>
+
+                        <div className="settings-info-box" style={{ marginTop: 'var(--spacing-md)' }}>
+                            <span className="material-icons-round">info</span>
+                            <span>
+                                Recuerda guardar los cambios. La nueva llave se usará en el próximo mensaje de WhatsApp que envíes a un cliente que pague con Nequi o Daviplata.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Resumen de Configuración Actual */}
                 <div className="settings-section">
                     <h3 className="settings-section-title">
@@ -345,6 +405,14 @@ export default function AdminSettings() {
                                 <span className={settings.freeDeliveryPromo ? 'text-success' : 'text-secondary'}>
                                     {settings.freeDeliveryPromo ? 'Domicilios gratis' : 'Sin promoción activa'}
                                 </span>
+                            </div>
+                        </div>
+
+                        <div className="summary-item">
+                            <span className="material-icons-round">account_balance_wallet</span>
+                            <div>
+                                <strong>Llave Nequi</strong>
+                                <span>{settings.nequiPaymentKey || 'No configurada'}</span>
                             </div>
                         </div>
                     </div>
