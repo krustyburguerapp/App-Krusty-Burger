@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getPrizeRedemptionState, clearPrizeRedemptionState } from '../../utils/loyaltySystem';
+import { getPrizeRedemptionState } from '../../utils/loyaltySystem';
 import { useCart } from '../../contexts/CartContext';
 import './PrizeRedemptionBanner.css';
 
 export default function PrizeRedemptionBanner() {
-    const navigate = useNavigate();
     const { hasRequiredPrizeItems, isPrizeRedemptionActive } = useCart();
     const [redemptionState, setRedemptionState] = useState(null);
 
@@ -15,11 +13,6 @@ export default function PrizeRedemptionBanner() {
     }, []);
 
     if (!redemptionState) return null;
-
-    const handleCancel = () => {
-        clearPrizeRedemptionState();
-        navigate('/menu');
-    };
 
     const hasRequiredItems = hasRequiredPrizeItems();
 
@@ -32,19 +25,12 @@ export default function PrizeRedemptionBanner() {
                 <div className="prize-redemption-text">
                     <h3>🎁 Reclamo de Premio - 7 Sellos</h3>
                     <p>
-                        {hasRequiredItems 
+                        {hasRequiredItems
                             ? '✅ ¡Tienes 1 comida individual + 1 bebida pequeña! Esos items salen GRATIS.'
                             : 'Selecciona 1 comida individual y 1 bebida pequeña para tu premio gratis.'
                         }
                     </p>
                 </div>
-                <button 
-                    className="prize-redemption-cancel"
-                    onClick={handleCancel}
-                    title="Cancelar reclamo"
-                >
-                    <span className="material-icons-round">close</span>
-                </button>
             </div>
             {!hasRequiredItems && isPrizeRedemptionActive && (
                 <div className="prize-redemption-progress">

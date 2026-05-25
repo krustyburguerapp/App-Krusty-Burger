@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import { calculateActualTime } from '../utils/estimatedTime';
 import { useAuth } from './AuthContext';
-import { addStamp, getUserStamps, confirmPrizeRedemption, getPrizeRedemptionState } from '../utils/loyaltySystem';
+import { addStamp, getUserStamps, confirmPrizeRedemption, getPrizeRedemptionState, validatePrizeEligibility } from '../utils/loyaltySystem';
 
 const OrdersContext = createContext(null);
 
@@ -131,13 +131,32 @@ export function OrdersProvider({ children }) {
                 updatedAt: now
             };
 
-            // VERIFICAR SI ES PEDIDO DE PREMIO
-            const redemptionState = getPrizeRedemptionState();
-            if (orderData.isPrizeOrder && redemptionState) {
+            // VERIFICAR SI ES PEDIDO DE PREMIO - VALIDACIÓN SERVER-SIDE
+            const redemptionState = await getPrizeRedemptionState(user.uid);
+            if (orderData.isPrizeOrder) {
+                if (!redemptionState) {
+                    console.error('❌ [OrdersContext] Pedido de premio sin estado de redención');
+                    return { success: false, error: 'No hay un proceso de reclamo activo. Inicia el reclamo desde tus pedidos.' };
+                }
+
+                // VALIDACIÓN CRÍTICA: Verificar elegibilidad directamente en Firestore
+                console.log('🔍 [OrdersContext] Validando elegibilidad del premio en Firestore...');
+                const eligibility = await validatePrizeEligibility(user.uid);
+
+                if (!eligibility.eligible) {
+                    console.error('❌ [OrdersContext] Usuario NO elegible para premio:', eligibility.reason);
+                    return { success: false, error: `No eres elegible para el premio: ${eligibility.reason}` };
+                }
+
+                console.log('✅ [OrdersContext] Usuario elegible para premio:', {
+                    stamps: eligibility.stamps,
+                    month: eligibility.month
+                });
+
                 orderToSave.isPrizeOrder = true;
                 orderToSave.prizeClaimData = {
-                    month: redemptionState.month,
-                    stampsAtClaim: redemptionState.stampsAtStart
+                    month: eligibility.month,
+                    stampsAtClaim: eligibility.stamps
                 };
             }
 

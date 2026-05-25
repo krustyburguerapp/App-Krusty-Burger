@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useProducts } from '../../contexts/ProductsContext';
+import { useCart } from '../../contexts/CartContext';
 import ProductCard from '../../components/Product/ProductCard';
 import ProductBuilderModal from '../../components/Product/ProductBuilderModal';
 import CategoryFilter from '../../components/Product/CategoryFilter';
@@ -12,6 +13,7 @@ import './Menu.css';
 
 export default function Menu() {
     const { products, loading } = useProducts();
+    const { refreshPrizeRedemption } = useCart();
     const [activeCategory, setActiveCategory] = useState('individual');
     const [search, setSearch] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
@@ -24,6 +26,11 @@ export default function Menu() {
     }, []);
 
     const storeIsOpen = restaurantSettings ? isRestaurantOpen(restaurantSettings) : true;
+
+    // Refrescar estado del premio al cargar el menú
+    useEffect(() => {
+        refreshPrizeRedemption();
+    }, []);
 
     const { featuredList, groupedProducts, regularList, hasResults } = useMemo(() => {
         const filtered = products.filter((p) => {

@@ -11,8 +11,11 @@ export function CartProvider({ children }) {
 
     // Verificar estado de reclamo de premio al montar
     useEffect(() => {
-        const state = getPrizeRedemptionState();
-        setPrizeRedemption(state);
+        const loadState = async () => {
+            const state = await getPrizeRedemptionState();
+            setPrizeRedemption(state);
+        };
+        loadState();
     }, []);
 
     const isPrizeRedemptionActive = !!prizeRedemption;
@@ -128,7 +131,7 @@ export function CartProvider({ children }) {
         clearCart,
         setDeliveryFee,
         setPrizeRedemption,
-        refreshPrizeRedemption: () => setPrizeRedemption(getPrizeRedemptionState()),
+        refreshPrizeRedemption: async () => setPrizeRedemption(await getPrizeRedemptionState()),
         totalItems,
         subtotal,
         deliveryFee,

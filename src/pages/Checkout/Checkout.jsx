@@ -48,7 +48,7 @@ export default function Checkout() {
     const [distanceInfo, setDistanceInfo] = useState(null);
 
     // Verificar si es pedido de premio
-    const redemptionState = getPrizeRedemptionState();
+    // La validación real de elegibilidad se hace en OrdersContext.createOrder()
     const isPrizeOrder = isPrizeRedemptionActive && hasRequiredPrizeItems();
 
     // Estado para configuración del restaurante

@@ -10,10 +10,81 @@
  */
 
 import { db } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, runTransaction } from 'firebase/firestore';
 
 const LOYALTY_COLLECTION = 'loyaltyStamps';
 const MAX_STAMPS = 7;
+const AUDIT_COLLECTION = 'auditLogs';
+
+/**
+ * Función interna para registrar acciones importantes en auditLogs
+ * No se exporta - se usa internamente para trazabilidad
+ */
+async function logAudit(action, details) {
+    try {
+        await addDoc(collection(db, AUDIT_COLLECTION), {
+            action,
+            ...details,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        // No bloquear la operación principal si el logging falla
+        console.error('⚠️ [logAudit] Error registrando auditoría:', error);
+    }
+}
+
+/**
+ * VALIDACIÓN SERVER-SIDE: Verifica si un usuario es elegible para reclamar el premio.
+ * Esta función lee directamente de Firestore, NO de localStorage.
+ * Se usa ANTES de crear un pedido de premio para evitar fraude.
+ */
+export async function validatePrizeEligibility(userId) {
+    try {
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const docRef = doc(db, LOYALTY_COLLECTION, `${userId}_${monthKey}`);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            return {
+                eligible: false,
+                reason: 'No tienes sellos este mes',
+                stamps: 0
+            };
+        }
+
+        const data = docSnap.data();
+
+        if (data.stamps < MAX_STAMPS) {
+            return {
+                eligible: false,
+                reason: `Solo tienes ${data.stamps} de ${MAX_STAMPS} sellos`,
+                stamps: data.stamps
+            };
+        }
+
+        if (data.prizeClaimed) {
+            return {
+                eligible: false,
+                reason: 'Ya reclamaste tu premio este mes',
+                stamps: data.stamps
+            };
+        }
+
+        return {
+            eligible: true,
+            stamps: data.stamps,
+            month: monthKey
+        };
+    } catch (error) {
+        console.error('❌ [validatePrizeEligibility] Error:', error);
+        return {
+            eligible: false,
+            reason: 'Error al verificar elegibilidad',
+            error: error.message
+        };
+    }
+}
 
 /**
  * Obtiene los sellos de un usuario para el mes actual
@@ -51,22 +122,52 @@ export async function getUserStamps(userId) {
 
 /**
  * Agrega un sello al usuario (automático por pedido completado)
+ * USA TRANSACCIONES para evitar race conditions cuando múltiples pedidos
+ * se marcan como "delivered" simultáneamente
  */
 export async function addStamp(userId, orderDate) {
     try {
         const now = new Date();
         const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const docRef = doc(db, LOYALTY_COLLECTION, `${userId}_${monthKey}`);
-        const docSnap = await getDoc(docRef);
 
         const date = orderDate.toDate ? orderDate.toDate() : new Date(orderDate);
         const dayKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-        console.log('📍 [addStamp] Iniciando proceso:', { userId, orderDate, dayKey, monthKey });
+        console.log('📍 [addStamp] Iniciando proceso con transacción:', { userId, orderDate, dayKey, monthKey });
 
-        if (docSnap.exists()) {
+        const result = await runTransaction(db, async (transaction) => {
+            const docSnap = await transaction.get(docRef);
+
+            if (!docSnap.exists()) {
+                // Crear documento con primer sello
+                const newStampData = {
+                    userId,
+                    month: monthKey,
+                    stamps: 1,
+                    stampDays: [dayKey],
+                    lastUpdated: now.toISOString(),
+                    prizeClaimed: false,
+                    prizeClaimedAt: null,
+                    manualStamps: []
+                };
+                transaction.set(docRef, newStampData);
+
+                // Logging de auditoría
+                await logAudit('stamp_added', {
+                    userId,
+                    stamps: 1,
+                    dayKey,
+                    month: monthKey,
+                    source: 'auto_order_first'
+                });
+
+                console.log('✅ [addStamp] Primer sello creado en transacción');
+                return { success: true, message: 'Primer sello agregado', stamps: 1, isNewStamp: true };
+            }
+
             const data = docSnap.data();
-            console.log('📄 [addStamp] Documento existe:', { stamps: data.stamps, stampDays: data.stampDays });
+            console.log('📄 [addStamp] Documento existe en transacción:', { stamps: data.stamps, stampDays: data.stampDays });
 
             // Verificar si ya tiene sello para este día
             if (data.stampDays?.includes(dayKey)) {
@@ -80,38 +181,32 @@ export async function addStamp(userId, orderDate) {
                 return { success: true, message: 'Ya completó los 7 sellos', stamps: data.stamps };
             }
 
-            // Agregar sello
+            // Agregar sello de forma atómica
             const newStampDays = [...(data.stampDays || []), dayKey];
             const newStamps = data.stamps + 1;
 
-            console.log('✏️ [addStamp] Actualizando documento:', { newStamps, newStampDays });
+            console.log('✏️ [addStamp] Actualizando en transacción:', { newStamps, newStampDays });
 
-            await updateDoc(docRef, {
+            transaction.update(docRef, {
                 stamps: newStamps,
                 stampDays: newStampDays,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: now.toISOString()
             });
 
-            console.log('✅ [addStamp] Sello agregado exitosamente:', newStamps);
-            return { success: true, message: 'Sello agregado', stamps: newStamps, isNewStamp: true };
-        } else {
-            // Crear nuevo documento
-            console.log('📝 [addStamp] Creando nuevo documento para usuario');
-            const newStampData = {
+            // Logging de auditoría
+            await logAudit('stamp_added', {
                 userId,
+                stamps: newStamps,
+                dayKey,
                 month: monthKey,
-                stamps: 1,
-                stampDays: [dayKey],
-                lastUpdated: new Date().toISOString(),
-                prizeClaimed: false,
-                prizeClaimedAt: null,
-                manualStamps: []
-            };
+                source: 'auto_order'
+            });
 
-            await setDoc(docRef, newStampData);
-            console.log('✅ [addStamp] Primer sello creado exitosamente');
-            return { success: true, message: 'Primer sello agregado', stamps: 1, isNewStamp: true };
-        }
+            console.log('✅ [addStamp] Sello agregado exitosamente en transacción:', newStamps);
+            return { success: true, message: 'Sello agregado', stamps: newStamps, isNewStamp: true };
+        });
+
+        return result;
     } catch (error) {
         console.error('❌ [addStamp] Error fatal:', error);
         console.error('❌ [addStamp] Stack:', error.stack);
@@ -121,19 +216,54 @@ export async function addStamp(userId, orderDate) {
 
 /**
  * Admin agrega sello manualmente
+ * USA TRANSACCIONES para evitar race conditions
  */
 export async function addManualStamp(userId, adminId, note = '') {
     try {
         const now = new Date();
         const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         const docRef = doc(db, LOYALTY_COLLECTION, `${userId}_${monthKey}`);
-        const docSnap = await getDoc(docRef);
 
-        console.log('📍 [addManualStamp] Iniciando proceso:', { userId, adminId, note, monthKey });
+        console.log('📍 [addManualStamp] Iniciando proceso con transacción:', { userId, adminId, note, monthKey });
 
-        if (docSnap.exists()) {
+        const result = await runTransaction(db, async (transaction) => {
+            const docSnap = await transaction.get(docRef);
+
+            if (!docSnap.exists()) {
+                // Crear documento si no existe
+                const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const newStampData = {
+                    userId,
+                    month: monthKey,
+                    stamps: 1,
+                    stampDays: [todayKey],
+                    lastUpdated: now.toISOString(),
+                    prizeClaimed: false,
+                    prizeClaimedAt: null,
+                    manualStamps: [{
+                        date: now.toISOString(),
+                        adminId,
+                        note
+                    }]
+                };
+                transaction.set(docRef, newStampData);
+
+                // Logging de auditoría
+                await logAudit('manual_stamp_added', {
+                    userId,
+                    adminId,
+                    stamps: 1,
+                    note,
+                    month: monthKey,
+                    firstStamp: true
+                });
+
+                console.log('✅ [addManualStamp] Primer sello manual creado en transacción');
+                return { success: true, stamps: 1 };
+            }
+
             const data = docSnap.data();
-            console.log('📄 [addManualStamp] Documento existe:', { stamps: data.stamps });
+            console.log('📄 [addManualStamp] Documento existe en transacción:', { stamps: data.stamps });
 
             if (data.stamps >= MAX_STAMPS) {
                 console.log('ℹ️ [addManualStamp] Usuario ya completó los 7 sellos');
@@ -147,46 +277,35 @@ export async function addManualStamp(userId, adminId, note = '') {
                 note
             };
 
-            // IMPORTANTE: También agregamos el día actual a stampDays para consistencia
+            // También agregamos el día actual a stampDays para consistencia
             const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const newStampDays = data.stampDays?.includes(todayKey)
                 ? data.stampDays
                 : [...(data.stampDays || []), todayKey];
 
-            console.log('✏️ [addManualStamp] Actualizando documento:', { newStamps, newStampDays });
+            console.log('✏️ [addManualStamp] Actualizando en transacción:', { newStamps, newStampDays });
 
-            await updateDoc(docRef, {
+            transaction.update(docRef, {
                 stamps: newStamps,
                 stampDays: newStampDays,
                 manualStamps: [...(data.manualStamps || []), manualStampEntry],
                 lastUpdated: now.toISOString()
             });
 
-            console.log('✅ [addManualStamp] Sello manual agregado exitosamente:', newStamps);
-            return { success: true, stamps: newStamps };
-        } else {
-            // Crear documento si no existe
-            console.log('📝 [addManualStamp] Creando nuevo documento para usuario');
-            const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const newStampData = {
+            // Logging de auditoría
+            await logAudit('manual_stamp_added', {
                 userId,
-                month: monthKey,
-                stamps: 1,
-                stampDays: [todayKey],
-                lastUpdated: now.toISOString(),
-                prizeClaimed: false,
-                prizeClaimedAt: null,
-                manualStamps: [{
-                    date: now.toISOString(),
-                    adminId,
-                    note
-                }]
-            };
+                adminId,
+                stamps: newStamps,
+                note,
+                month: monthKey
+            });
 
-            await setDoc(docRef, newStampData);
-            console.log('✅ [addManualStamp] Primer sello manual creado exitosamente');
-            return { success: true, stamps: 1 };
-        }
+            console.log('✅ [addManualStamp] Sello manual agregado exitosamente en transacción:', newStamps);
+            return { success: true, stamps: newStamps };
+        });
+
+        return result;
     } catch (error) {
         console.error('❌ [addManualStamp] Error fatal:', error);
         console.error('❌ [addManualStamp] Stack:', error.stack);
@@ -214,6 +333,14 @@ export async function resetUserStamps(userId, adminId, note = '') {
                 resetBy: adminId,
                 resetNote: note,
                 lastUpdated: now.toISOString()
+            });
+
+            // Logging de auditoría
+            await logAudit('stamps_reset_by_admin', {
+                userId,
+                adminId,
+                note,
+                month: monthKey
             });
 
             return { success: true, message: 'Sellos reiniciados' };
@@ -506,7 +633,8 @@ export async function claimPrizeFromApp(userId, userData) {
 }
 
 /**
- * INICIA el proceso de reclamo de premio - Solo marca el estado
+ * INICIA el proceso de reclamo de premio
+ * Crea un documento en Firestore (no localStorage) para evitar manipulación
  * El reinicio real ocurre cuando se confirma el pedido
  */
 export async function startPrizeRedemption(userId, userData) {
@@ -532,7 +660,49 @@ export async function startPrizeRedemption(userId, userData) {
             };
         }
 
-        // Guardar estado temporal en localStorage
+        // Verificar si ya tiene una redención activa (no expirada)
+        const redemptionsRef = collection(db, 'prizeRedemptions');
+        const q = query(
+            redemptionsRef,
+            where('userId', '==', userId),
+            where('status', '==', 'active')
+        );
+        const existingSnap = await getDocs(q);
+
+        if (!existingSnap.empty) {
+            // Ya tiene una redención activa - verificar si no expiró
+            const existing = existingSnap.docs[0].data();
+            const startedAt = new Date(existing.startedAt);
+            const diffMinutes = (now - startedAt) / 1000 / 60;
+
+            if (diffMinutes < 30) {
+                // Aún activa, retornar éxito
+                console.log('ℹ️ [startPrizeRedemption] Ya existe redención activa');
+                return { success: true, message: 'Redención ya activa', existing: true };
+            }
+
+            // Expirada - marcar como expirada
+            await updateDoc(doc(db, 'prizeRedemptions', existingSnap.docs[0].id), {
+                status: 'expired',
+                expiredAt: now.toISOString()
+            });
+        }
+
+        // Crear nuevo documento de redención en Firestore
+        const redemptionDocRef = await addDoc(redemptionsRef, {
+            userId,
+            userName: userData?.displayName || '',
+            userEmail: userData?.email || '',
+            userPhone: userData?.phone || '',
+            month: monthKey,
+            stampsAtStart: loyaltyDocSnap.data().stamps,
+            startedAt: now.toISOString(),
+            expiresAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(), // 30 minutos
+            status: 'active', // active, completed, expired, cancelled
+            orderId: null
+        });
+
+        // También guardar en localStorage como fallback temporal
         const redemptionState = {
             isActive: true,
             userId,
@@ -541,16 +711,26 @@ export async function startPrizeRedemption(userId, userData) {
             startedAt: now.toISOString(),
             userName: userData?.displayName || '',
             userEmail: userData?.email || '',
-            userPhone: userData?.phone || ''
+            userPhone: userData?.phone || '',
+            redemptionDocId: redemptionDocRef.id // ID del documento en Firestore
         };
 
         localStorage.setItem('krustyPrizeRedemption', JSON.stringify(redemptionState));
 
-        console.log('✅ [startPrizeRedemption] Estado de reclamo iniciado:', redemptionState);
+        // Logging de auditoría
+        await logAudit('prize_redemption_started', {
+            userId,
+            redemptionDocId: redemptionDocRef.id,
+            month: monthKey,
+            stampsAtStart: loyaltyDocSnap.data().stamps
+        });
+
+        console.log('✅ [startPrizeRedemption] Redención iniciada en Firestore:', redemptionDocRef.id);
 
         return {
             success: true,
-            message: 'Estado de reclamo iniciado'
+            message: 'Estado de reclamo iniciado',
+            redemptionDocId: redemptionDocRef.id
         };
     } catch (error) {
         console.error('❌ [startPrizeRedemption] Error:', error);
@@ -560,9 +740,72 @@ export async function startPrizeRedemption(userId, userData) {
 
 /**
  * Obtiene el estado actual del reclamo de premio
+ * Si se pasa userId, busca en Firestore primero
+ * Si no, usa localStorage (para CartContext que no tiene acceso al usuario)
  */
-export function getPrizeRedemptionState() {
+export async function getPrizeRedemptionState(userId = null) {
     try {
+        // Si no hay userId, usar localStorage directamente
+        if (!userId) {
+            const state = localStorage.getItem('krustyPrizeRedemption');
+            if (!state) return null;
+
+            const parsed = JSON.parse(state);
+
+            // Verificar que no haya expirado (máximo 30 minutos)
+            const startedAt = new Date(parsed.startedAt);
+            const now = new Date();
+            const diffMinutes = (now - startedAt) / 1000 / 60;
+
+            if (diffMinutes > 30) {
+                localStorage.removeItem('krustyPrizeRedemption');
+                return null;
+            }
+
+            return parsed;
+        }
+
+        // Si hay userId, buscar en Firestore primero
+        const redemptionsRef = collection(db, 'prizeRedemptions');
+        const q = query(
+            redemptionsRef,
+            where('userId', '==', userId),
+            where('status', '==', 'active')
+        );
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            const data = doc.data();
+
+            // Verificar si expiró
+            const expiresAt = new Date(data.expiresAt);
+            const now = new Date();
+
+            if (now > expiresAt) {
+                // Expirado - actualizar estado
+                await updateDoc(doc.ref, {
+                    status: 'expired',
+                    expiredAt: now.toISOString()
+                });
+                localStorage.removeItem('krustyPrizeRedemption');
+                return null;
+            }
+
+            return {
+                isActive: true,
+                userId: data.userId,
+                month: data.month,
+                stampsAtStart: data.stampsAtStart,
+                startedAt: data.startedAt,
+                userName: data.userName,
+                userEmail: data.userEmail,
+                userPhone: data.userPhone,
+                redemptionDocId: doc.id
+            };
+        }
+
+        // Fallback a localStorage si no hay nada en Firestore
         const state = localStorage.getItem('krustyPrizeRedemption');
         if (!state) return null;
 
@@ -574,32 +817,100 @@ export function getPrizeRedemptionState() {
         const diffMinutes = (now - startedAt) / 1000 / 60;
 
         if (diffMinutes > 30) {
-            // Expirado
             localStorage.removeItem('krustyPrizeRedemption');
             return null;
         }
 
         return parsed;
     } catch (error) {
-        console.error('Error getting prize redemption state:', error);
-        return null;
+        console.error('❌ [getPrizeRedemptionState] Error:', error);
+        // Fallback a localStorage en caso de error
+        try {
+            const state = localStorage.getItem('krustyPrizeRedemption');
+            return state ? JSON.parse(state) : null;
+        } catch {
+            return null;
+        }
     }
 }
 
 /**
- * Limpia el estado de reclamo de premio
+ * Limpia el estado de reclamo de premio (tanto Firestore como localStorage)
  */
-export function clearPrizeRedemptionState() {
+export async function clearPrizeRedemptionState(userId = null) {
+    // Limpiar localStorage
     localStorage.removeItem('krustyPrizeRedemption');
+
+    // Limpiar documento en Firestore si existe
+    if (userId) {
+        try {
+            const redemptionsRef = collection(db, 'prizeRedemptions');
+            const q = query(
+                redemptionsRef,
+                where('userId', '==', userId),
+                where('status', '==', 'active')
+            );
+            const snapshot = await getDocs(q);
+
+            if (!snapshot.empty) {
+                // Marcar como cancelada en vez de borrar (para auditoría)
+                await updateDoc(snapshot.docs[0].ref, {
+                    status: 'cancelled',
+                    cancelledAt: new Date().toISOString()
+                });
+            }
+        } catch (error) {
+            console.warn('⚠️ [clearPrizeRedemptionState] Error limpiando Firestore:', error);
+        }
+    }
+}
+
+/**
+ * Verifica si hay una redención activa para un usuario (server-side check)
+ */
+export async function verifyPrizeRedemptionActive(userId) {
+    try {
+        const redemptionsRef = collection(db, 'prizeRedemptions');
+        const q = query(
+            redemptionsRef,
+            where('userId', '==', userId),
+            where('status', '==', 'active')
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) return { active: false, reason: 'No hay redención activa' };
+
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+
+        // Verificar expiración
+        const expiresAt = new Date(data.expiresAt);
+        const now = new Date();
+
+        if (now > expiresAt) {
+            await updateDoc(doc.ref, {
+                status: 'expired',
+                expiredAt: now.toISOString()
+            });
+            return { active: false, reason: 'Redención expirada' };
+        }
+
+        return { active: true, redemptionDocId: doc.id, data };
+    } catch (error) {
+        console.error('❌ [verifyPrizeRedemptionActive] Error:', error);
+        return { active: false, reason: 'Error al verificar', error: error.message };
+    }
 }
 
 /**
  * CONFIRMA el reclamo del premio y reinicia los sellos
  * Se llama después de crear el pedido exitosamente
+ * USA TRANSACCIÓN para garantizar atomicidad: o se hacen ambas operaciones
+ * (crear claim + reiniciar sellos) o no se hace ninguna
  */
 export async function confirmPrizeRedemption(userId, orderId) {
     try {
-        const redemptionState = getPrizeRedemptionState();
+        const redemptionState = await getPrizeRedemptionState(userId);
 
         if (!redemptionState || redemptionState.userId !== userId) {
             return {
@@ -611,44 +922,88 @@ export async function confirmPrizeRedemption(userId, orderId) {
         const now = new Date();
         const monthKey = redemptionState.month;
         const loyaltyDocRef = doc(db, LOYALTY_COLLECTION, `${userId}_${monthKey}`);
+        const claimsCollection = collection(db, 'prizeClaims');
 
-        // 1. Crear registro del reclamo en colección 'prizeClaims'
-        const claimRef = await addDoc(collection(db, 'prizeClaims'), {
+        console.log('🔒 [confirmPrizeRedemption] Iniciando transacción atómica...');
+
+        // Ejecutar todo en una transacción atómica
+        const claimRef = await runTransaction(db, async (transaction) => {
+            // 1. Leer el documento de sellos dentro de la transacción
+            const loyaltyDocSnap = await transaction.get(loyaltyDocRef);
+
+            if (!loyaltyDocSnap.exists()) {
+                throw new Error('No se encontró el documento de sellos del usuario');
+            }
+
+            const loyaltyData = loyaltyDocSnap.data();
+
+            // Verificación de seguridad: confirmar que tiene 7+ sellos y no ha reclamado
+            if (loyaltyData.stamps < MAX_STAMPS) {
+                throw new Error(`Usuario no tiene 7 sellos (tiene ${loyaltyData.stamps})`);
+            }
+
+            if (loyaltyData.prizeClaimed) {
+                throw new Error('Usuario ya reclamó su premio este mes');
+            }
+
+            // 2. Crear el documento de prizeClaims
+            // Nota: addDoc no se puede usar dentro de transacciones, así que creamos
+            // un doc con ID explícito usando doc() y set()
+            const newClaimRef = doc(claimsCollection);
+            const claimData = {
+                userId,
+                userName: redemptionState.userName,
+                userEmail: redemptionState.userEmail,
+                userPhone: redemptionState.userPhone,
+                month: monthKey,
+                stampsAtClaim: loyaltyData.stamps,
+                claimedAt: now.toISOString(),
+                status: 'pending',
+                note: '',
+                orderId
+            };
+            transaction.set(newClaimRef, claimData);
+
+            // 3. Reiniciar sellos automáticamente
+            transaction.update(loyaltyDocRef, {
+                stamps: 0,
+                stampDays: [],
+                manualStamps: [],
+                prizeClaimed: true,
+                prizeClaimedAt: now.toISOString(),
+                autoReset: true,
+                lastUpdated: now.toISOString()
+            });
+
+            // Logging de auditoría (se registra dentro de la transacción)
+            // Nota: addDoc no funciona en transacciones, pero el claim ya se crea con set()
+            // así que el logging se hace después fuera de la transacción
+
+            console.log('✅ [confirmPrizeRedemption] Transacción completada exitosamente');
+            return { claimRef: newClaimRef, stampsAtClaim: loyaltyData.stamps };
+        });
+
+        // 4. Logging de auditoría (fuera de la transacción)
+        await logAudit('prize_confirmed', {
             userId,
-            userName: redemptionState.userName,
-            userEmail: redemptionState.userEmail,
-            userPhone: redemptionState.userPhone,
-            month: monthKey,
-            stampsAtClaim: redemptionState.stampsAtStart,
-            claimedAt: now.toISOString(),
-            status: 'pending',
-            note: '',
-            orderId // Vincular con el pedido
+            orderId,
+            claimId: claimRef.claimRef.id,
+            stampsAtClaim: claimRef.stampsAtClaim,
+            month: monthKey
         });
 
-        // 2. Reiniciar sellos automáticamente
-        await updateDoc(loyaltyDocRef, {
-            stamps: 0,
-            stampDays: [],
-            manualStamps: [],
-            prizeClaimed: true,
-            prizeClaimedAt: now.toISOString(),
-            autoReset: true,
-            lastUpdated: now.toISOString()
-        });
-
-        // 3. Limpiar estado temporal
-        clearPrizeRedemptionState();
+        // 5. Limpiar estado temporal (fuera de la transacción)
+        await clearPrizeRedemptionState(userId);
 
         console.log('✅ [confirmPrizeRedemption] Premio confirmado y sellos reiniciados:', {
             userId,
             orderId,
-            claimId: claimRef.id
+            claimId: claimRef.claimRef.id
         });
 
         return {
             success: true,
-            claimId: claimRef.id,
+            claimId: claimRef.claimRef.id,
             message: 'Premio confirmado. Sellos reiniciados.'
         };
     } catch (error) {
@@ -686,11 +1041,26 @@ export async function getPrizeClaims(monthFilter = null) {
 export async function updatePrizeClaimStatus(claimId, status, note = '') {
     try {
         const claimRef = doc(db, 'prizeClaims', claimId);
+
+        // Leer el claim actual para logging
+        const claimSnap = await getDoc(claimRef);
+        const previousStatus = claimSnap.exists() ? claimSnap.data().status : 'unknown';
+
         await updateDoc(claimRef, {
             status,
             note,
             updatedAt: new Date().toISOString()
         });
+
+        // Logging de auditoría
+        await logAudit('prize_claim_status_updated', {
+            claimId,
+            previousStatus,
+            newStatus: status,
+            note,
+            userId: claimSnap.exists() ? claimSnap.data().userId : 'unknown'
+        });
+
         return { success: true };
     } catch (error) {
         console.error('Error updating prize claim:', error);

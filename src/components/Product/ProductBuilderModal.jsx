@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useCart } from '../../contexts/CartContext';
 import { useProducts } from '../../contexts/ProductsContext';
 import { showToast } from '../../utils/notifications';
+import { getPrizeRedemptionState } from '../../utils/loyaltySystem';
 import Modal from '../UI/Modal';
 import './ProductBuilderModal.css';
 
@@ -13,8 +14,23 @@ const COMBO_OPTIONS = [
 ];
 
 export default function ProductBuilderModal({ isOpen, onClose, product }) {
-    const { addItem } = useCart();
+    const { addItem, isPrizeRedemptionActive, hasRequiredPrizeItems, items } = useCart();
     const { products } = useProducts();
+
+    // Verificar si hay premio activo
+    const [prizeState, setPrizeState] = useState(null);
+
+    useEffect(() => {
+        const loadPrizeState = async () => {
+            const state = await getPrizeRedemptionState();
+            setPrizeState(state);
+        };
+        loadPrizeState();
+    }, [isOpen]);
+
+    const isPrizeActive = prizeState && isPrizeRedemptionActive;
+    const alreadyHasFood = items.some(item => item.category === 'individual');
+    const alreadyHasDrink = items.some(item => item.category === 'bebidas_pequenas');
 
     // Filtramos productos por las nuevas categorías de bebidas y adicionales
     const bebidasPequenasList = useMemo(() => products.filter(p => p.category === 'bebidas_pequenas' && p.available), [products]);
@@ -242,7 +258,47 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
     };
 
     const handleAddToCart = () => {
-        // Validaciones
+        // CASO ESPECIAL: Premio de 7 sellos - comida individual + bebida pequeña gratis
+        if (isPrizeActive && isIndividual && !alreadyHasFood) {
+            // Verificar que haya seleccionado una bebida pequeña
+            if (tempBebidas.length === 0 || !tempBebidas.some(b => b.product.category === 'bebidas_pequenas')) {
+                showToast('Debes elegir una bebida pequeña para tu premio.', 'error');
+                return;
+            }
+
+            // Agregar la comida individual GRATIS
+            addItem({
+                ...product,
+                price: 0, // Precio 0 por el premio
+                isPrizeItem: true
+            });
+
+            // Agregar la bebida pequeña GRATIS (la primera)
+            const smallDrink = tempBebidas.find(b => b.product.category === 'bebidas_pequenas');
+            if (smallDrink) {
+                addItem({
+                    ...smallDrink.product,
+                    price: 0, // Precio 0 por el premio
+                    isPrizeItem: true
+                });
+            }
+
+            // Agregar otras bebidas o adicionales si los hay (estos SÍ se cobran)
+            tempBebidas.forEach(item => {
+                if (item.product.category !== 'bebidas_pequenas') {
+                    for (let i = 0; i < item.qty; i++) { addItem(item.product); }
+                }
+            });
+            tempAdicionales.forEach(item => {
+                for (let i = 0; i < item.qty; i++) { addItem(item.product); }
+            });
+
+            showToast('🎁 ¡Premio aplicado! Comida + Bebida pequeñas GRATIS.', 'success');
+            onClose();
+            return;
+        }
+
+        // Validaciones normales
         if (totalSelectedPeqDrinks !== totalPeqCombos) {
             showToast(`Te faltan ${totalPeqCombos - totalSelectedPeqDrinks} bebidas pequeñas para los combos.`, 'error');
             return;
@@ -347,7 +403,12 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                 <div className="pb-info">
                                     <p className="pb-desc">{product.description}</p>
                                     <div className="pb-price-row">
-                                        {product.promoActive && product.promoPrice ? (
+                                        {isPrizeActive && isIndividual && !alreadyHasFood ? (
+                                            <>
+                                                <span className="pb-price pb-price-original">${product.price.toLocaleString('es-CO')}</span>
+                                                <span className="pb-price pb-price-promo">$0 GRATIS 🎁</span>
+                                            </>
+                                        ) : product.promoActive && product.promoPrice ? (
                                             <>
                                                 <span className="pb-price pb-price-original">${product.price.toLocaleString('es-CO')}</span>
                                                 <span className="pb-price pb-price-promo">${product.promoPrice.toLocaleString('es-CO')}</span>
@@ -517,12 +578,22 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                             <div className="pb-section">
                                 <h3 className="pb-section-title">
                                     <span className="material-icons-round">local_drink</span>
-                                    ¿Deseas una bebida?
+                                    {isPrizeActive && isIndividual ? 'Elige tu Bebida Pequeña (GRATIS)' : '¿Deseas una bebida?'}
                                 </h3>
+                                {isPrizeActive && isIndividual && (
+                                    <div style={{ background: 'rgba(255, 193, 7, 0.15)', padding: '12px', borderRadius: '8px', marginBottom: '16px', borderLeft: '4px solid #FFC107' }}>
+                                        <p style={{ margin: 0, fontSize: '14px', color: '#333' }}>
+                                            🎁 <strong>Selecciona una bebida pequeña</strong> para completar tu premio. Esa bebida sale GRATIS.
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="pb-list">
                                     {[...bebidasPequenasList, ...bebidasMedianasList, ...bebidasGrandesList].map(bebida => {
                                         const selected = tempBebidas.find(b => b.product.id === bebida.id);
                                         const qty = selected ? selected.qty : 0;
+                                        const isSmallDrink = bebida.category === 'bebidas_pequenas';
+                                        const isFreePrizeDrink = isPrizeActive && isIndividual && isSmallDrink && !alreadyHasDrink;
+
                                         return (
                                             <div key={bebida.id} className="pb-item">
                                                 {bebida.imageURL && (
@@ -532,7 +603,11 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                                                 )}
                                                 <div className="pb-item-info">
                                                     <span className="pb-item-name">{bebida.name}</span>
-                                                    <span className="pb-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
+                                                    {isFreePrizeDrink ? (
+                                                        <span className="pb-item-price" style={{ color: '#4CAF50' }}>$0 GRATIS 🎁</span>
+                                                    ) : (
+                                                        <span className="pb-item-price">+${bebida.price.toLocaleString('es-CO')}</span>
+                                                    )}
                                                 </div>
                                                 <div className="pb-item-actions">
                                                     {qty > 0 ? (
@@ -612,9 +687,16 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
 
                     {currentStep === 'info' && (
                         <button className="btn btn-primary" onClick={() => {
-                            if (isIndividual) goToStep('combos');
-                            else if (isFamiliar) goToStep('familiar_drinks');
-                            else goToStep('extras');
+                            // Si hay premio activo y es comida individual, ir directo a bebidas
+                            if (isPrizeActive && isIndividual && !alreadyHasFood) {
+                                goToStep('drinks');
+                            } else if (isIndividual) {
+                                goToStep('combos');
+                            } else if (isFamiliar) {
+                                goToStep('familiar_drinks');
+                            } else {
+                                goToStep('extras');
+                            }
                         }}>
                             Continuar <span className="material-icons-round">arrow_forward</span>
                         </button>
@@ -646,7 +728,17 @@ export default function ProductBuilderModal({ isOpen, onClose, product }) {
                     )}
 
                     {currentStep === 'drinks' && (
-                        <button className="btn btn-primary" onClick={() => goToStep('extras')}>
+                        <button className="btn btn-primary" onClick={() => {
+                            // Si hay premio activo, obligar a elegir bebida pequeña
+                            if (isPrizeActive && isIndividual && !alreadyHasDrink) {
+                                const hasSmallDrink = tempBebidas.some(b => b.product.category === 'bebidas_pequenas');
+                                if (!hasSmallDrink) {
+                                    showToast('Debes elegir una bebida pequeña para tu premio.', 'error');
+                                    return;
+                                }
+                            }
+                            goToStep('extras');
+                        }}>
                             Continuar <span className="material-icons-round">arrow_forward</span>
                         </button>
                     )}
