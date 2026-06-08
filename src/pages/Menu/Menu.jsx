@@ -77,6 +77,34 @@ export default function Menu() {
 
     if (loading) return <div className="page"><Spinner size="lg" /></div>;
 
+    // Si no hay productos (fallas técnicas / menú no disponible), invitamos a
+    // contactar por WhatsApp en lugar de mostrar un menú vacío o datos falsos.
+    if (products.length === 0) {
+        const waMessage = encodeURIComponent('Hola Krusty 👋 quiero hacer un pedido. ¿Me ayudan con el menú?');
+        return (
+            <div className="page">
+                <div className="container">
+                    <EmptyState
+                        icon="construction"
+                        title="Estamos teniendo fallas técnicas"
+                        message="Nuestro menú no está disponible en este momento. Escríbenos por WhatsApp y con gusto te tomamos el pedido."
+                    >
+                        <a
+                            href={`https://wa.me/573025712968?text=${waMessage}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-lg btn-full"
+                            style={{ background: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                        >
+                            <span className="material-icons-round">chat</span>
+                            Contactar al WhatsApp de Krusty
+                        </a>
+                    </EmptyState>
+                </div>
+            </div>
+        );
+    }
+
     const handleProductSelect = (product) => {
         setSelectedProduct(product);
     };

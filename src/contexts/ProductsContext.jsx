@@ -6,7 +6,6 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { compressImage } from '../utils/imageCompressor';
-import { DEMO_PRODUCTS } from '../data/menuData';
 
 const ProductsContext = createContext(null);
 
@@ -17,7 +16,7 @@ export function ProductsProvider({ children }) {
 
     useEffect(() => {
         if (isDemoMode) {
-            setProducts(DEMO_PRODUCTS);
+            setProducts([]);
             setLoading(false);
             return;
         }
@@ -44,10 +43,11 @@ export function ProductsProvider({ children }) {
 
         loadFromCache();
 
-        // 2. TIMEOUT DE SEGURIDAD
+        // 2. TIMEOUT DE SEGURIDAD: si Firebase no responde, dejamos el menú vacío
+        // para que la pantalla muestre el aviso de fallas técnicas (no datos falsos)
         const safetyTimeout = setTimeout(() => {
             if (loading && !productsLoadedFromCache) {
-                setProducts(DEMO_PRODUCTS);
+                setProducts([]);
                 setLoading(false);
             }
         }, 3000);
@@ -60,14 +60,14 @@ export function ProductsProvider({ children }) {
                 ...d.data()
             }));
 
-            setProducts(productsData.length > 0 ? productsData : DEMO_PRODUCTS);
+            setProducts(productsData);
             setLoading(false);
             setError(null);
         }, (err) => {
             clearTimeout(safetyTimeout);
             console.error('Error sincronizando productos de Firebase:', err.message);
             if (!productsLoadedFromCache && products.length === 0) {
-                setProducts(DEMO_PRODUCTS);
+                setProducts([]);
             }
             setLoading(false);
         });

@@ -1,4 +1,4 @@
-export default function EmptyState({ icon = 'inbox', title, message }) {
+export default function EmptyState({ icon = 'inbox', title, message, children }) {
     return (
         <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -16,6 +16,7 @@ export default function EmptyState({ icon = 'inbox', title, message }) {
                 fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)',
                 textAlign: 'center', maxWidth: 300
             }}>{message}</p>}
+            {children && <div style={{ marginTop: '0.5rem', width: '100%', maxWidth: 340 }}>{children}</div>}
         </div>
     );
 }
