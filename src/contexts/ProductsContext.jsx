@@ -12,6 +12,7 @@ const ProductsContext = createContext(null);
 export function ProductsProvider({ children }) {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [unavailable, setUnavailable] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
@@ -24,50 +25,61 @@ export function ProductsProvider({ children }) {
         const productsRef = collection(db, 'products');
         const q = query(productsRef, orderBy('order', 'asc'));
 
-        let productsLoadedFromCache = false;
+        // resolved = true en cuanto tenemos una respuesta REAL (cache o servidor).
+        // Mientras sea false, seguimos mostrando el spinner de "Cargando menú…".
+        let resolved = false;
 
-        // 1. CACHE PRIMERO: carga instantanea desde IndexedDB
+        // 1. CACHE PRIMERO: carga instantanea desde IndexedDB para clientes recurrentes
         const loadFromCache = async () => {
             try {
                 const cachedDocs = await getDocsFromCache(q);
                 if (!cachedDocs.empty) {
                     const productsData = cachedDocs.docs.map(d => ({ id: d.id, ...d.data() }));
+                    resolved = true;
                     setProducts(productsData);
+                    setUnavailable(false);
                     setLoading(false);
-                    productsLoadedFromCache = true;
                 }
             } catch (error) {
-                // Cache vacio, no pasa nada
+                // Cache vacio, esperamos la respuesta del servidor
             }
         };
 
         loadFromCache();
 
-        // 2. TIMEOUT DE SEGURIDAD: si Firebase no responde, dejamos el menú vacío
-        // para que la pantalla muestre el aviso de fallas técnicas (no datos falsos)
+        // 2. TIMEOUT GENEROSO (10s): damos tiempo de sobra a conexiones lentas antes
+        // de mostrar el aviso de fallas técnicas. Si la respuesta llega despues, el
+        // listener de abajo recupera el menú automaticamente (no se queda trabado).
         const safetyTimeout = setTimeout(() => {
-            if (loading && !productsLoadedFromCache) {
+            if (!resolved) {
                 setProducts([]);
+                setUnavailable(true);
                 setLoading(false);
             }
-        }, 3000);
+        }, 10000);
 
-        // 3. LISTENER EN TIEMPO REAL: actualiza desde servidor en segundo plano
+        // 3. LISTENER EN TIEMPO REAL: fuente de verdad del servidor
         const unsubscribe = onSnapshot(q, (snapshot) => {
             clearTimeout(safetyTimeout);
+            resolved = true;
             const productsData = snapshot.docs.map((d) => ({
                 id: d.id,
                 ...d.data()
             }));
 
             setProducts(productsData);
+            // Solo marcamos "no disponible" si Firebase respondio pero el menú esta vacio
+            setUnavailable(productsData.length === 0);
             setLoading(false);
             setError(null);
         }, (err) => {
             clearTimeout(safetyTimeout);
             console.error('Error sincronizando productos de Firebase:', err.message);
-            if (!productsLoadedFromCache && products.length === 0) {
+            setError(err.message);
+            // Si nunca cargamos nada (ni cache ni servidor), mostramos el aviso
+            if (!resolved) {
                 setProducts([]);
+                setUnavailable(true);
             }
             setLoading(false);
         });
@@ -148,7 +160,7 @@ export function ProductsProvider({ children }) {
     };
 
     return (
-        <ProductsContext.Provider value={{ products, loading, error, addProduct, updateProduct, deleteProduct, toggleAvailability }}>
+        <ProductsContext.Provider value={{ products, loading, unavailable, error, addProduct, updateProduct, deleteProduct, toggleAvailability }}>
             {children}
         </ProductsContext.Provider>
     );

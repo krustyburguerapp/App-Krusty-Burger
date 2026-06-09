@@ -12,7 +12,7 @@ import { INDIVIDUAL_SUBCATEGORIES } from '../../data/menuData';
 import './Menu.css';
 
 export default function Menu() {
-    const { products, loading } = useProducts();
+    const { products, loading, unavailable } = useProducts();
     const { refreshPrizeRedemption } = useCart();
     const [activeCategory, setActiveCategory] = useState('individual');
     const [search, setSearch] = useState('');
@@ -75,11 +75,23 @@ export default function Menu() {
         };
     }, [products, activeCategory, search]);
 
-    if (loading) return <div className="page"><Spinner size="lg" /></div>;
+    // Mientras Firebase responde mostramos un spinner con mensaje (hasta 10s).
+    // NO mostramos el aviso de fallas técnicas aquí, para que una conexión lenta
+    // no asuste al cliente antes de que el menú alcance a cargar.
+    if (loading) {
+        return (
+            <div className="page">
+                <div className="container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: '1.25rem' }}>
+                    <Spinner size="lg" />
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Cargando el menú…</p>
+                </div>
+            </div>
+        );
+    }
 
-    // Si no hay productos (fallas técnicas / menú no disponible), invitamos a
+    // Solo si Firebase falló o se agotó el tiempo (unavailable), invitamos a
     // contactar por WhatsApp en lugar de mostrar un menú vacío o datos falsos.
-    if (products.length === 0) {
+    if (unavailable) {
         const waMessage = encodeURIComponent('Hola Krusty 👋 quiero hacer un pedido. ¿Me ayudan con el menú?');
         return (
             <div className="page">
